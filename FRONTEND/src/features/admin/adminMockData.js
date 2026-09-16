@@ -617,3 +617,54 @@ export const adminSettingsData = {
     sidebarBehavior: 'Expanded',
   },
 };
+
+export const sampleTicketDetails = {
+  id: '#1018',
+  subject: 'Application crashes on startup',
+  customer: {
+    name: 'Arun Kumar',
+    email: 'arun.k@devstudio.io',
+    avatar: 'AK',
+    company: 'DevStudio Co',
+  },
+  category: 'Technical Support',
+  priority: 'Critical',
+  status: 'In Progress',
+  assignedAgent: 'Alex Johnson',
+  created: 'Today, 08:45 AM',
+  updated: '4 minutes ago',
+  slaTimeRemaining: '18 minutes remaining',
+  slaStatus: 'at_risk',
+  conversation: [
+    {
+      id: 'msg_1',
+      sender: 'customer',
+      senderName: 'Arun Kumar',
+      time: '08:45 AM',
+      text: 'The desktop application crashes immediately upon startup after applying the v2.4 update. Stack trace indicates segment fault in memory buffer.',
+      attachments: [{ name: 'crash-dump.log', size: '1.2 MB' }],
+    },
+    {
+      id: 'msg_2',
+      sender: 'agent',
+      senderName: 'Alex Johnson (Support Agent)',
+      time: '09:10 AM',
+      text: 'Thank you Arun. I am inspecting the crash dump file and cross-checking memory symbols with engineering.',
+      attachments: [],
+    },
+  ],
+  internalNotes: [
+    {
+      id: 'note_1',
+      author: 'Alex Rivera (Admin)',
+      time: '09:15 AM',
+      text: 'Flagged for priority attention: Engineering team notified regarding potential regression in v2.4 graphics driver binding.',
+    },
+  ],
+  timeline: [
+    { event: 'Ticket created by Arun Kumar', time: '08:45 AM' },
+    { event: 'Assigned to Alex Johnson', time: '08:50 AM' },
+    { event: 'Priority set to Critical', time: '08:55 AM' },
+    { event: 'Agent Alex Johnson replied', time: '09:10 AM' },
+  ],
+};

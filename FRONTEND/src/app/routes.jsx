@@ -26,6 +26,7 @@ import AgentProfile from '../features/agent/pages/AgentProfile';
 import AdminLayout from '../layouts/AdminLayout';
 import AdminDashboard from '../features/admin/pages/AdminDashboard';
 import AdminTickets from '../features/admin/pages/AdminTickets';
+import AdminTicketDetails from '../features/admin/pages/AdminTicketDetails';
 
 /**
  * Application route definitions.
@@ -78,6 +79,7 @@ export default function AppRoutes() {
       <Route element={<AdminLayout />}>
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/tickets" element={<AdminTickets />} />
+        <Route path="/admin/tickets/:ticketId" element={<AdminTicketDetails />} />
       </Route>
     </Routes>
   );
