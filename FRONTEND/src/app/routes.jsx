@@ -18,6 +18,7 @@ import CustomerProfile from '../features/customer/pages/CustomerProfile';
 import AgentLayout from '../layouts/AgentLayout';
 import AgentDashboard from '../features/agent/pages/AgentDashboard';
 import MyQueue from '../features/agent/pages/MyQueue';
+import AllTickets from '../features/agent/pages/AllTickets';
 
 /**
  * Application route definitions.
@@ -56,6 +57,7 @@ export default function AppRoutes() {
       <Route element={<AgentLayout />}>
         <Route path="/agent/dashboard" element={<AgentDashboard />} />
         <Route path="/agent/queue" element={<MyQueue />} />
+        <Route path="/agent/tickets" element={<AllTickets />} />
         <Route path="/agent/knowledge-base" element={<KnowledgeBase />} />
         <Route path="/agent/knowledge-base/:articleId" element={<ArticleDetails />} />
       </Route>
