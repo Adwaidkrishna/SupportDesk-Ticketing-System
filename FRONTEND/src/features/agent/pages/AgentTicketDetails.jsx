@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { sampleTicketDetails, currentAgent } from '../agentMockData';
 import styles from './AgentTicketDetails.module.css';
 
+import CallConfirmationModal from '../../video-call/components/CallConfirmationModal';
+
 export default function AgentTicketDetails() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
@@ -17,10 +19,21 @@ export default function AgentTicketDetails() {
   const [internalNoteText, setInternalNoteText] = useState('');
   const [activeTab, setActiveTab] = useState('reply'); // 'reply' | 'internal_note'
   const [toastMessage, setToastMessage] = useState('');
+  const [showCallModal, setShowCallModal] = useState(false);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 4000);
+  };
+
+  const handleStartCallClick = () => {
+    setShowCallModal(true);
+  };
+
+  const handleConfirmStartCall = () => {
+    setShowCallModal(false);
+    const cleanId = (ticketId || '1018').replace('#', '');
+    navigate(`/ticket/${cleanId}/call`);
   };
 
   const handleSendCustomerReply = (e) => {
@@ -166,6 +179,13 @@ export default function AgentTicketDetails() {
         <div className={styles.topActions}>
           <button
             type="button"
+            className={styles.videoCallBtn}
+            onClick={handleStartCallClick}
+          >
+            📹 Start Video Call
+          </button>
+          <button
+            type="button"
             className={styles.escalateBtn}
             onClick={handleEscalate}
           >
@@ -180,6 +200,18 @@ export default function AgentTicketDetails() {
           </button>
         </div>
       </div>
+
+      {showCallModal && (
+        <CallConfirmationModal
+          ticket={{
+            id: ticket.id,
+            subject: ticket.subject,
+            customerName: ticket.customer?.name || 'Rahul Sharma',
+          }}
+          onConfirm={handleConfirmStartCall}
+          onCancel={() => setShowCallModal(false)}
+        />
+      )}
 
       {toastMessage && (
         <div className={styles.toastSuccess}>

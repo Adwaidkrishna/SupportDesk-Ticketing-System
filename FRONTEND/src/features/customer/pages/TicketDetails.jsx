@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { currentUser } from '../customerMockData';
 import Button from '../../../components/common/Button';
+import IncomingCallBanner from '../../video-call/components/IncomingCallBanner';
 import styles from './TicketDetails.module.css';
 
 /**
@@ -118,6 +119,16 @@ export default function TicketDetails() {
   const [attachments, setAttachments] = useState([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
+  const [hasIncomingCall, setHasIncomingCall] = useState(true);
+
+  const handleJoinCall = () => {
+    const cleanId = (ticketId || '1024').replace('#', '');
+    navigate(`/ticket/${cleanId}/call`);
+  };
+
+  const handleDeclineCall = () => {
+    setHasIncomingCall(false);
+  };
 
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -176,6 +187,17 @@ export default function TicketDetails() {
         ← Back to My Tickets
       </Link>
 
+      {/* Incoming Call Banner */}
+      {hasIncomingCall && (
+        <IncomingCallBanner
+          agentName={ticketData.assignedAgent?.name || 'Alex Johnson'}
+          ticketId={ticketData.id}
+          ticketSubject={ticketData.subject}
+          onDecline={handleDeclineCall}
+          onJoin={handleJoinCall}
+        />
+      )}
+
       {/* Ticket Title Header */}
       <div className={styles.header}>
         <div className={styles.titleArea}>
@@ -191,12 +213,19 @@ export default function TicketDetails() {
           <h1 className={styles.subjectTitle}>{ticketData.subject}</h1>
         </div>
 
-        <Button
-          variant={ticketStatus === 'Closed' ? 'secondary' : 'ghost'}
-          onClick={handleToggleClose}
-        >
-          {ticketStatus === 'Closed' ? 'Reopen Ticket' : 'Close Ticket'}
-        </Button>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          {!hasIncomingCall && (
+            <Button variant="primary" onClick={handleJoinCall}>
+              📹 Join Video Call
+            </Button>
+          )}
+          <Button
+            variant={ticketStatus === 'Closed' ? 'secondary' : 'ghost'}
+            onClick={handleToggleClose}
+          >
+            {ticketStatus === 'Closed' ? 'Reopen Ticket' : 'Close Ticket'}
+          </Button>
+        </div>
       </div>
 
       {/* Main Split Grid */}

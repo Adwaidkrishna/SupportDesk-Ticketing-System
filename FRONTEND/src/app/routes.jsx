@@ -34,6 +34,8 @@ import SLA from '../features/admin/pages/SLA';
 import Reports from '../features/admin/pages/Reports';
 import Settings from '../features/admin/pages/Settings';
 
+import VideoCallPage from '../features/video-call/pages/VideoCallPage';
+
 /**
  * Application route definitions.
  * Auth routes share AuthLayout; Customer routes share CustomerLayout; Agent routes share AgentLayout; Admin routes share AdminLayout.
@@ -43,6 +45,9 @@ export default function AppRoutes() {
     <Routes>
       {/* Redirect root to login */}
       <Route path="/" element={<Navigate to="/login" replace />} />
+
+      {/* Standalone Video Call Workspace Route */}
+      <Route path="/ticket/:ticketId/call" element={<VideoCallPage />} />
 
       {/* Auth routes — wrapped in AuthLayout */}
       <Route element={<AuthLayout />}>
