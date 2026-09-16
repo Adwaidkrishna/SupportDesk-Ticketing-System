@@ -14,6 +14,7 @@ import TicketDetails from '../features/customer/pages/TicketDetails';
 import CustomerNotifications from '../features/customer/pages/CustomerNotifications';
 import KnowledgeBase from '../features/customer/pages/KnowledgeBase';
 import ArticleDetails from '../features/customer/pages/ArticleDetails';
+import CustomerProfile from '../features/customer/pages/CustomerProfile';
 
 /**
  * Application route definitions.
@@ -43,6 +44,8 @@ export default function AppRoutes() {
         <Route path="/customer/notifications" element={<CustomerNotifications />} />
         <Route path="/customer/knowledge-base" element={<KnowledgeBase />} />
         <Route path="/customer/knowledge-base/:articleId" element={<ArticleDetails />} />
+        <Route path="/customer/profile" element={<CustomerProfile />} />
+        <Route path="/customer/settings" element={<CustomerProfile />} />
       </Route>
     </Routes>
   );
