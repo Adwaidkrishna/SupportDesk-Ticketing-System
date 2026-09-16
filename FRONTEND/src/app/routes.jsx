@@ -29,6 +29,7 @@ import AdminTickets from '../features/admin/pages/AdminTickets';
 import AdminTicketDetails from '../features/admin/pages/AdminTicketDetails';
 import Users from '../features/admin/pages/Users';
 import Agents from '../features/admin/pages/Agents';
+import Categories from '../features/admin/pages/Categories';
 
 /**
  * Application route definitions.
@@ -84,6 +85,7 @@ export default function AppRoutes() {
         <Route path="/admin/tickets/:ticketId" element={<AdminTicketDetails />} />
         <Route path="/admin/users" element={<Users />} />
         <Route path="/admin/agents" element={<Agents />} />
+        <Route path="/admin/categories" element={<Categories />} />
       </Route>
     </Routes>
   );
