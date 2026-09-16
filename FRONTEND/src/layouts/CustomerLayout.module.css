@@ -13,7 +13,6 @@
   display: flex;
   position: relative;
   overflow-x: hidden;
-  transform: translateZ(0);
 }
 
 .bgOverlay {

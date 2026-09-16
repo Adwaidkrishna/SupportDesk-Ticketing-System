@@ -82,6 +82,14 @@
     margin-bottom: var(--space-6);
   }
 
+  .activityCol > div,
+  .categoryCol > div,
+  .quickCol > div,
+  .ticketsCol > div,
+  .kbCol > div {
+    height: auto;
+  }
+
   .quickCol {
     grid-column: auto;
   }
@@ -96,5 +104,11 @@
   .statsGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: var(--space-3);
+  }
+
+  .middleGrid,
+  .bottomGrid {
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
   }
 }
