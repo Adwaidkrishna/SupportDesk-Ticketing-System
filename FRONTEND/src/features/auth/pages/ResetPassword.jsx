@@ -121,19 +121,11 @@ export default function ResetPassword() {
           large
           loading={formState.isSubmitting}
         >
-          Reset password
+          Reset password →
         </Button>
 
         {/* Back link */}
-        <Link
-          to="/login"
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            fontSize: 'var(--font-size-sm)',
-            color: 'var(--color-text-secondary)',
-          }}
-        >
+        <Link to="/login" className={styles.backLink}>
           ← Back to sign in
         </Link>
       </form>

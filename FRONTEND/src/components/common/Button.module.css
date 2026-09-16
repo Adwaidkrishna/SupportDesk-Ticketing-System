@@ -68,7 +68,7 @@
 }
 
 .secondary:focus-visible {
-  border-color: var(--color-accent);
+  border-color: var(--color-border-focus);
   box-shadow: var(--shadow-glow);
   outline: none;
 }

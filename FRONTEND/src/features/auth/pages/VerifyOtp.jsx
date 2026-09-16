@@ -143,7 +143,7 @@ export default function VerifyOtp() {
             loading={isSubmitting}
             disabled={otp.length !== 6}
           >
-            Verify email
+            Verify email →
           </Button>
 
           {/* Resend */}

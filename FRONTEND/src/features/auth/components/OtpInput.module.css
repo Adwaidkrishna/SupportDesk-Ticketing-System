@@ -34,7 +34,7 @@
 }
 
 .digit:focus {
-  border-color: var(--color-accent);
+  border-color: var(--color-border-focus);
   box-shadow: var(--shadow-glow);
   background-color: var(--color-surface-raised);
   outline: none;

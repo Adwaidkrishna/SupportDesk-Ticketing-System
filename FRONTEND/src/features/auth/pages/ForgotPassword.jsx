@@ -88,12 +88,18 @@ export default function ForgotPassword() {
           name="email"
           type="email"
           label="Email"
-          placeholder="admin@supportdesk.com"
+          placeholder="you@company.com"
           autoComplete="email"
           value={formState.values.email}
           onChange={formState.handleChange}
           onBlur={formState.handleBlur}
           error={formState.touched.email ? formState.errors.email : ''}
+          icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+          }
         />
 
         {/* Submit */}
@@ -104,7 +110,7 @@ export default function ForgotPassword() {
           large
           loading={formState.isSubmitting}
         >
-          Send reset link
+          Send reset link →
         </Button>
 
         {/* Back link */}

@@ -11,6 +11,7 @@ export default function Input({
   label,
   error,
   id,
+  icon,
   className = '',
   ...props
 }) {
@@ -24,7 +25,12 @@ export default function Input({
         </label>
       )}
       <div className={styles.inputWrapper}>
-        <input id={id} className={styles.input} {...props} />
+        {icon && <span className={styles.inputIcon}>{icon}</span>}
+        <input
+          id={id}
+          className={`${styles.input} ${icon ? styles.hasIcon : ''}`}
+          {...props}
+        />
       </div>
       {error && <span className={styles.errorMessage}>{error}</span>}
     </div>

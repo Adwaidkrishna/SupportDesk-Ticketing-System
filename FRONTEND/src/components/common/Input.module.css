@@ -38,6 +38,26 @@
   line-height: var(--line-height-normal);
 }
 
+.inputIcon {
+  position: absolute;
+  left: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.inputIcon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hasIcon {
+  padding-left: 42px;
+}
+
 .input::placeholder {
   color: var(--color-text-placeholder);
 }
@@ -47,7 +67,7 @@
 }
 
 .input:focus {
-  border-color: var(--color-accent);
+  border-color: var(--color-border-focus);
   box-shadow: var(--shadow-glow);
   background-color: var(--color-surface-raised);
 }
