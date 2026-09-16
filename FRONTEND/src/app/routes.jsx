@@ -25,6 +25,7 @@ import AgentNotifications from '../features/agent/pages/AgentNotifications';
 import AgentProfile from '../features/agent/pages/AgentProfile';
 import AdminLayout from '../layouts/AdminLayout';
 import AdminDashboard from '../features/admin/pages/AdminDashboard';
+import AdminTickets from '../features/admin/pages/AdminTickets';
 
 /**
  * Application route definitions.
@@ -76,6 +77,7 @@ export default function AppRoutes() {
       {/* Admin routes — wrapped in AdminLayout */}
       <Route element={<AdminLayout />}>
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/tickets" element={<AdminTickets />} />
       </Route>
     </Routes>
   );
