@@ -1,0 +1,58 @@
+/* ============================================
+   Auth Layout
+   ============================================ */
+
+.authLayout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--space-5);
+  background-color: var(--color-bg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle radial gradient behind the card */
+.authLayout::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(
+    circle,
+    rgba(10, 132, 255, 0.04) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-10) var(--space-8);
+  position: relative;
+  z-index: 1;
+  animation: fadeInUp 0.5s ease both;
+}
+
+/* — Responsive — */
+
+@media (max-width: 480px) {
+  .authLayout {
+    padding: var(--space-4);
+    align-items: flex-start;
+    padding-top: var(--space-12);
+  }
+
+  .card {
+    padding: var(--space-8) var(--space-5);
+    border-radius: var(--radius-lg);
+  }
+}

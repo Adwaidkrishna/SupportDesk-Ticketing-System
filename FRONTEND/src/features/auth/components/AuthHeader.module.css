@@ -1,0 +1,49 @@
+/* ============================================
+   Auth Header
+   ============================================ */
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.logoMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-pressed));
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-5);
+}
+
+.logoMark svg {
+  width: 24px;
+  height: 24px;
+  fill: #ffffff;
+}
+
+.appName {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-3);
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-tight);
+  margin-bottom: var(--space-2);
+}
+
+.subtitle {
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-normal);
+}

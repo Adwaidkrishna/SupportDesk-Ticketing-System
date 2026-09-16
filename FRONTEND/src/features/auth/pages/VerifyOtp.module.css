@@ -1,0 +1,94 @@
+/* ============================================
+   Verify OTP Page
+   ============================================ */
+
+.page {
+  animation: fadeIn 0.4s ease both;
+}
+
+.emailHighlight {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.otpSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  margin-top: var(--space-2);
+}
+
+.serverError {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-error-bg);
+  border: 1px solid rgba(255, 69, 58, 0.2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+  animation: shake 0.4s ease;
+  width: 100%;
+}
+
+.successMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-success-bg);
+  border: 1px solid rgba(48, 209, 88, 0.2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-success);
+  width: 100%;
+  animation: slideDown var(--transition-normal);
+}
+
+.resend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.resendButton {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent);
+  padding: 0;
+  transition: color var(--transition-fast);
+}
+
+.resendButton:hover:not(:disabled) {
+  color: var(--color-accent-hover);
+}
+
+.resendButton:disabled {
+  color: var(--color-text-tertiary);
+  cursor: not-allowed;
+}
+
+.timer {
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  transition: color var(--transition-fast);
+  margin-top: var(--space-2);
+}
+
+.backLink:hover {
+  color: var(--color-text-primary);
+}
