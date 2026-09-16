@@ -23,7 +23,7 @@ export default function Login() {
 
     if (result.success) {
       // In a real app, store token and redirect to dashboard
-      navigate('/');
+      navigate('/customer/dashboard');
     }
 
     return result;

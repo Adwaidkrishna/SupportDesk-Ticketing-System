@@ -1,0 +1,100 @@
+/* CustomerDashboard Styles */
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.4s ease both;
+}
+
+/* Stats Grid — 4 Columns */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+/* Middle Grid — Activity (2fr), Categories (1.3fr), Quick Actions (1.2fr) */
+.middleGrid {
+  display: grid;
+  grid-template-columns: 2fr 1.3fr 1.2fr;
+  gap: var(--space-6);
+  margin-bottom: var(--space-8);
+  align-items: stretch;
+}
+
+.activityCol,
+.categoryCol,
+.quickCol {
+  display: flex;
+  flex-direction: column;
+}
+
+.activityCol > div,
+.categoryCol > div,
+.quickCol > div {
+  height: 100%;
+}
+
+/* Bottom Grid — Recent Tickets (2fr) & KB Preview (1fr) */
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--space-6);
+  align-items: stretch;
+}
+
+.ticketsCol,
+.kbCol {
+  display: flex;
+  flex-direction: column;
+}
+
+.ticketsCol > div,
+.kbCol > div {
+  height: 100%;
+}
+
+/* ============================================
+   Responsive Strategy
+   ============================================ */
+
+@media (max-width: 1280px) {
+  .middleGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .quickCol {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 1023px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .middleGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .quickCol {
+    grid-column: auto;
+  }
+
+  .bottomGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 480px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+}

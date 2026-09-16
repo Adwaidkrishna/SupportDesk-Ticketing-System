@@ -1,0 +1,103 @@
+/* StatCard Styles */
+
+.card {
+  background: rgba(16, 17, 22, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition:
+    transform var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.iconBox {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconBox svg {
+  width: 22px;
+  height: 22px;
+}
+
+.sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 28px;
+}
+
+.sparkBar {
+  width: 5px;
+  border-radius: 2px;
+  transition: height 0.3s ease;
+}
+
+.bottomRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.valueRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.value {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.trendTag {
+  font-size: 0.72rem;
+  font-weight: var(--font-weight-bold);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+}
+
+.trendUp {
+  background-color: rgba(48, 209, 88, 0.15);
+  color: #30D158;
+}
+
+.trendDown {
+  background-color: rgba(255, 214, 10, 0.15);
+  color: #FFD60A;
+}
+
+.label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
