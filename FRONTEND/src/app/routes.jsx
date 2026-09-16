@@ -23,10 +23,12 @@ import EscalatedTickets from '../features/agent/pages/EscalatedTickets';
 import AgentTicketDetails from '../features/agent/pages/AgentTicketDetails';
 import AgentNotifications from '../features/agent/pages/AgentNotifications';
 import AgentProfile from '../features/agent/pages/AgentProfile';
+import AdminLayout from '../layouts/AdminLayout';
+import AdminDashboard from '../features/admin/pages/AdminDashboard';
 
 /**
  * Application route definitions.
- * Auth routes share AuthLayout; Customer routes share CustomerLayout; Agent routes share AgentLayout.
+ * Auth routes share AuthLayout; Customer routes share CustomerLayout; Agent routes share AgentLayout; Admin routes share AdminLayout.
  */
 export default function AppRoutes() {
   return (
@@ -69,6 +71,11 @@ export default function AppRoutes() {
         <Route path="/agent/settings" element={<AgentProfile />} />
         <Route path="/agent/knowledge-base" element={<KnowledgeBase />} />
         <Route path="/agent/knowledge-base/:articleId" element={<ArticleDetails />} />
+      </Route>
+
+      {/* Admin routes — wrapped in AdminLayout */}
+      <Route element={<AdminLayout />}>
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
       </Route>
     </Routes>
   );
