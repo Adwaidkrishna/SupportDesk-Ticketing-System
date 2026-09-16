@@ -15,10 +15,12 @@ import CustomerNotifications from '../features/customer/pages/CustomerNotificati
 import KnowledgeBase from '../features/customer/pages/KnowledgeBase';
 import ArticleDetails from '../features/customer/pages/ArticleDetails';
 import CustomerProfile from '../features/customer/pages/CustomerProfile';
+import AgentLayout from '../layouts/AgentLayout';
+import AgentDashboard from '../features/agent/pages/AgentDashboard';
 
 /**
  * Application route definitions.
- * Auth routes share AuthLayout; Customer routes share CustomerLayout.
+ * Auth routes share AuthLayout; Customer routes share CustomerLayout; Agent routes share AgentLayout.
  */
 export default function AppRoutes() {
   return (
@@ -47,6 +49,13 @@ export default function AppRoutes() {
         <Route path="/customer/knowledge-base/:articleId" element={<ArticleDetails />} />
         <Route path="/customer/profile" element={<CustomerProfile />} />
         <Route path="/customer/settings" element={<CustomerProfile />} />
+      </Route>
+
+      {/* Agent routes — wrapped in AgentLayout */}
+      <Route element={<AgentLayout />}>
+        <Route path="/agent/dashboard" element={<AgentDashboard />} />
+        <Route path="/agent/knowledge-base" element={<KnowledgeBase />} />
+        <Route path="/agent/knowledge-base/:articleId" element={<ArticleDetails />} />
       </Route>
     </Routes>
   );
