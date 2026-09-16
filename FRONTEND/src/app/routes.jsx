@@ -40,6 +40,7 @@ export default function AppRoutes() {
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
         <Route path="/customer/create-ticket" element={<CreateTicket />} />
         <Route path="/customer/tickets" element={<MyTickets />} />
+        <Route path="/customer/my-tickets" element={<MyTickets />} />
         <Route path="/customer/tickets/:ticketId" element={<TicketDetails />} />
         <Route path="/customer/notifications" element={<CustomerNotifications />} />
         <Route path="/customer/knowledge-base" element={<KnowledgeBase />} />
