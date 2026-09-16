@@ -21,6 +21,7 @@ import MyQueue from '../features/agent/pages/MyQueue';
 import AllTickets from '../features/agent/pages/AllTickets';
 import EscalatedTickets from '../features/agent/pages/EscalatedTickets';
 import AgentTicketDetails from '../features/agent/pages/AgentTicketDetails';
+import AgentNotifications from '../features/agent/pages/AgentNotifications';
 
 /**
  * Application route definitions.
@@ -62,6 +63,7 @@ export default function AppRoutes() {
         <Route path="/agent/tickets" element={<AllTickets />} />
         <Route path="/agent/escalated" element={<EscalatedTickets />} />
         <Route path="/agent/tickets/:ticketId" element={<AgentTicketDetails />} />
+        <Route path="/agent/notifications" element={<AgentNotifications />} />
         <Route path="/agent/knowledge-base" element={<KnowledgeBase />} />
         <Route path="/agent/knowledge-base/:articleId" element={<ArticleDetails />} />
       </Route>
