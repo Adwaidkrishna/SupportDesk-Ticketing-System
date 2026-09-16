@@ -11,6 +11,8 @@ import CreateTicket from '../features/customer/pages/CreateTicket';
 import MyTickets from '../features/customer/pages/MyTickets';
 import TicketDetails from '../features/customer/pages/TicketDetails';
 
+import CustomerNotifications from '../features/customer/pages/CustomerNotifications';
+
 /**
  * Application route definitions.
  * Auth routes share AuthLayout; Customer routes share CustomerLayout.
@@ -36,6 +38,7 @@ export default function AppRoutes() {
         <Route path="/customer/create-ticket" element={<CreateTicket />} />
         <Route path="/customer/tickets" element={<MyTickets />} />
         <Route path="/customer/tickets/:ticketId" element={<TicketDetails />} />
+        <Route path="/customer/notifications" element={<CustomerNotifications />} />
       </Route>
     </Routes>
   );
