@@ -32,6 +32,7 @@ import Agents from '../features/admin/pages/Agents';
 import Categories from '../features/admin/pages/Categories';
 import SLA from '../features/admin/pages/SLA';
 import Reports from '../features/admin/pages/Reports';
+import Settings from '../features/admin/pages/Settings';
 
 /**
  * Application route definitions.
@@ -90,6 +91,7 @@ export default function AppRoutes() {
         <Route path="/admin/categories" element={<Categories />} />
         <Route path="/admin/sla" element={<SLA />} />
         <Route path="/admin/reports" element={<Reports />} />
+        <Route path="/admin/settings" element={<Settings />} />
       </Route>
     </Routes>
   );
