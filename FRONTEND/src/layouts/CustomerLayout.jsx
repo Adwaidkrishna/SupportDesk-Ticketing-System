@@ -5,17 +5,18 @@ import styles from './CustomerLayout.module.css';
 
 /**
  * Customer Layout shell.
- * Provides sidebar, topbar, mobile navigation, atmospheric background,
- * and main scrollable content area (<Outlet />).
+ * Desktop: Fixed left sidebar + topbar + main area.
+ * Mobile (<768px): Mobile top header + bottom navigation + More drawer modal.
  */
 export default function CustomerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
 
   const activePath = location.pathname;
 
   const handleLogout = () => {
+    setMoreDrawerOpen(false);
     navigate('/login');
   };
 
@@ -91,6 +92,14 @@ export default function CustomerLayout() {
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         );
+      case 'more':
+        return (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="19" cy="12" r="1" />
+            <circle cx="5" cy="12" r="1" />
+          </svg>
+        );
       default:
         return null;
     }
@@ -98,12 +107,12 @@ export default function CustomerLayout() {
 
   return (
     <div className={styles.layout}>
-      {/* Overlay background */}
+      {/* Background Overlays */}
       <div className={styles.bgOverlay} />
       <div className={styles.ambientGlow} />
 
-      {/* Sidebar Desktop */}
-      <aside className={`${styles.sidebar} ${mobileMenuOpen ? styles.mobileOpen : ''}`}>
+      {/* Desktop Sidebar (hidden on mobile via CSS) */}
+      <aside className={styles.sidebar}>
         {/* Brand */}
         <div className={styles.sidebarBrand}>
           <div className={styles.brandIcon}>
@@ -114,17 +123,18 @@ export default function CustomerLayout() {
           <span className={styles.brandTitle}>SupportDesk</span>
         </div>
 
-        {/* Main Navigation */}
+        {/* Navigation */}
         <nav className={styles.nav}>
           <ul className={styles.navList}>
             {navItems.map((item) => {
-              const isActive = activePath === item.path;
+              const isActive =
+                activePath === item.path ||
+                (item.path === '/customer/my-tickets' && activePath === '/customer/tickets');
               return (
                 <li key={item.path}>
                   <Link
                     to={item.path}
                     className={`${styles.navItem} ${isActive ? styles.active : ''}`}
-                    onClick={() => setMobileMenuOpen(false)}
                   >
                     <span className={styles.navIcon}>{renderIcon(item.icon)}</span>
                     <span className={styles.navLabel}>{item.label}</span>
@@ -145,7 +155,6 @@ export default function CustomerLayout() {
                   <Link
                     to={item.path}
                     className={`${styles.navItem} ${isActive ? styles.active : ''}`}
-                    onClick={() => setMobileMenuOpen(false)}
                   >
                     <span className={styles.navIcon}>{renderIcon(item.icon)}</span>
                     <span className={styles.navLabel}>{item.label}</span>
@@ -168,7 +177,11 @@ export default function CustomerLayout() {
           <p className={styles.supportText}>
             Our support team is<br />here for you 24/7.
           </p>
-          <button type="button" className={styles.supportButton}>
+          <button
+            type="button"
+            className={styles.supportButton}
+            onClick={() => navigate('/customer/create-ticket')}
+          >
             Contact Support →
           </button>
         </div>
@@ -195,24 +208,10 @@ export default function CustomerLayout() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content Wrapper */}
       <div className={styles.mainWrapper}>
-        {/* Topbar */}
+        {/* Desktop Topbar (hidden on mobile) */}
         <header className={styles.topbar}>
-          {/* Mobile Menu Toggle */}
-          <button
-            type="button"
-            className={styles.mobileToggle}
-            onClick={() => setMobileMenuOpen((prev) => !prev)}
-            aria-label="Toggle menu"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
-
           {/* Search Bar */}
           <div className={styles.searchBar}>
             <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -229,8 +228,12 @@ export default function CustomerLayout() {
 
           {/* Topbar Right */}
           <div className={styles.topbarRight}>
-            {/* Notification Bell */}
-            <button type="button" className={styles.iconButton} title="Notifications">
+            <button
+              type="button"
+              className={styles.iconButton}
+              title="Notifications"
+              onClick={() => navigate('/customer/notifications')}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
@@ -238,8 +241,10 @@ export default function CustomerLayout() {
               <span className={styles.notifBadge}>{currentUser.unreadNotificationsCount}</span>
             </button>
 
-            {/* Profile Dropdown Badge */}
-            <div className={styles.profileBadge}>
+            <div
+              className={styles.profileBadge}
+              onClick={() => navigate('/customer/profile')}
+            >
               <div className={styles.badgeAvatar}>{currentUser.initials}</div>
               <div className={styles.badgeInfo}>
                 <span className={styles.badgeName}>{currentUser.name}</span>
@@ -252,39 +257,191 @@ export default function CustomerLayout() {
           </div>
         </header>
 
+        {/* Mobile Dedicated Top Header (hidden on desktop) */}
+        <header className={styles.mobileHeader}>
+          <div
+            className={styles.mobileBrand}
+            onClick={() => navigate('/customer/dashboard')}
+          >
+            <div className={styles.mobileBrandIcon}>
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
+              </svg>
+            </div>
+            <span className={styles.mobileBrandTitle}>SupportDesk</span>
+          </div>
+
+          <div className={styles.mobileHeaderRight}>
+            <button
+              type="button"
+              className={styles.mobileIconButton}
+              onClick={() => navigate('/customer/notifications')}
+              title="Notifications"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              {currentUser.unreadNotificationsCount > 0 && (
+                <span className={styles.mobileNotifBadge}>
+                  {currentUser.unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+
+            <div
+              className={styles.mobileUserAvatar}
+              onClick={() => navigate('/customer/profile')}
+              title="Profile"
+            >
+              {currentUser.initials}
+            </div>
+          </div>
+        </header>
+
         {/* Page Content */}
         <main className={styles.content}>
           <Outlet />
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation Bar (<768px) */}
       <nav className={styles.mobileBottomNav}>
-        <Link to="/customer/dashboard" className={`${styles.mobileNavItem} ${activePath === '/customer/dashboard' ? styles.active : ''}`}>
+        <Link
+          to="/customer/dashboard"
+          className={`${styles.mobileNavItem} ${activePath === '/customer/dashboard' ? styles.active : ''}`}
+        >
           {renderIcon('grid')}
           <span>Home</span>
         </Link>
-        <Link to="/customer/create-ticket" className={`${styles.mobileNavItem} ${activePath === '/customer/create-ticket' ? styles.active : ''}`}>
-          {renderIcon('plus')}
-          <span>Create</span>
-        </Link>
-        <Link to="/customer/my-tickets" className={`${styles.mobileNavItem} ${activePath === '/customer/my-tickets' ? styles.active : ''}`}>
+
+        <Link
+          to="/customer/my-tickets"
+          className={`${styles.mobileNavItem} ${
+            activePath === '/customer/my-tickets' || activePath === '/customer/tickets'
+              ? styles.active
+              : ''
+          }`}
+        >
           {renderIcon('layers')}
           <span>Tickets</span>
         </Link>
-        <Link to="/customer/notifications" className={`${styles.mobileNavItem} ${activePath === '/customer/notifications' ? styles.active : ''}`}>
-          {renderIcon('bell')}
-          <span>Notifs</span>
+
+        <Link
+          to="/customer/knowledge-base"
+          className={`${styles.mobileNavItem} ${
+            activePath.startsWith('/customer/knowledge-base') ? styles.active : ''
+          }`}
+        >
+          {renderIcon('book')}
+          <span>Knowledge</span>
         </Link>
+
+        <Link
+          to="/customer/notifications"
+          className={`${styles.mobileNavItem} ${activePath === '/customer/notifications' ? styles.active : ''}`}
+        >
+          <div className={styles.bottomNavIconWrap}>
+            {renderIcon('bell')}
+            {currentUser.unreadNotificationsCount > 0 && (
+              <span className={styles.bottomNavDot} />
+            )}
+          </div>
+          <span>Alerts</span>
+        </Link>
+
         <button
           type="button"
-          className={styles.mobileNavItem}
-          onClick={() => setMobileMenuOpen((prev) => !prev)}
+          className={`${styles.mobileNavItem} ${
+            moreDrawerOpen || activePath === '/customer/profile' || activePath === '/customer/settings'
+              ? styles.active
+              : ''
+          }`}
+          onClick={() => setMoreDrawerOpen((prev) => !prev)}
         >
           {renderIcon('user')}
           <span>More</span>
         </button>
       </nav>
+
+      {/* Slide-Up More Menu Sheet for Mobile */}
+      {moreDrawerOpen && (
+        <div className={styles.moreDrawerBackdrop} onClick={() => setMoreDrawerOpen(false)}>
+          <div className={styles.moreDrawer} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.moreDrawerHeader}>
+              <div className={styles.moreUserInfo}>
+                <div className={styles.moreAvatar}>{currentUser.initials}</div>
+                <div>
+                  <h4 className={styles.moreName}>{currentUser.name}</h4>
+                  <p className={styles.moreEmail}>{currentUser.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.closeDrawerBtn}
+                onClick={() => setMoreDrawerOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className={styles.moreDrawerBody}>
+              <button
+                type="button"
+                className={styles.moreDrawerItem}
+                onClick={() => {
+                  setMoreDrawerOpen(false);
+                  navigate('/customer/create-ticket');
+                }}
+              >
+                <span className={styles.moreIcon}>{renderIcon('plus')}</span>
+                <span>Create Support Ticket</span>
+              </button>
+
+              <button
+                type="button"
+                className={styles.moreDrawerItem}
+                onClick={() => {
+                  setMoreDrawerOpen(false);
+                  navigate('/customer/profile');
+                }}
+              >
+                <span className={styles.moreIcon}>{renderIcon('user')}</span>
+                <span>Profile Settings</span>
+              </button>
+
+              <button
+                type="button"
+                className={styles.moreDrawerItem}
+                onClick={() => {
+                  setMoreDrawerOpen(false);
+                  navigate('/customer/settings');
+                }}
+              >
+                <span className={styles.moreIcon}>{renderIcon('settings')}</span>
+                <span>Preferences</span>
+              </button>
+
+              <div className={styles.moreDivider} />
+
+              <button
+                type="button"
+                className={`${styles.moreDrawerItem} ${styles.logoutItem}`}
+                onClick={handleLogout}
+              >
+                <span className={styles.moreIcon}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                </span>
+                <span>Log Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
