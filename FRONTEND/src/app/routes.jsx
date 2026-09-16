@@ -22,6 +22,7 @@ import AllTickets from '../features/agent/pages/AllTickets';
 import EscalatedTickets from '../features/agent/pages/EscalatedTickets';
 import AgentTicketDetails from '../features/agent/pages/AgentTicketDetails';
 import AgentNotifications from '../features/agent/pages/AgentNotifications';
+import AgentProfile from '../features/agent/pages/AgentProfile';
 
 /**
  * Application route definitions.
@@ -64,6 +65,8 @@ export default function AppRoutes() {
         <Route path="/agent/escalated" element={<EscalatedTickets />} />
         <Route path="/agent/tickets/:ticketId" element={<AgentTicketDetails />} />
         <Route path="/agent/notifications" element={<AgentNotifications />} />
+        <Route path="/agent/profile" element={<AgentProfile />} />
+        <Route path="/agent/settings" element={<AgentProfile />} />
         <Route path="/agent/knowledge-base" element={<KnowledgeBase />} />
         <Route path="/agent/knowledge-base/:articleId" element={<ArticleDetails />} />
       </Route>
