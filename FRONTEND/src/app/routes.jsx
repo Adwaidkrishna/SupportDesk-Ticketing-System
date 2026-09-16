@@ -8,6 +8,7 @@ import ForgotPassword from '../features/auth/pages/ForgotPassword';
 import ResetPassword from '../features/auth/pages/ResetPassword';
 import CustomerDashboard from '../features/customer/pages/CustomerDashboard';
 import CreateTicket from '../features/customer/pages/CreateTicket';
+import MyTickets from '../features/customer/pages/MyTickets';
 
 /**
  * Application route definitions.
@@ -32,6 +33,7 @@ export default function AppRoutes() {
       <Route element={<CustomerLayout />}>
         <Route path="/customer/dashboard" element={<CustomerDashboard />} />
         <Route path="/customer/create-ticket" element={<CreateTicket />} />
+        <Route path="/customer/tickets" element={<MyTickets />} />
       </Route>
     </Routes>
   );
