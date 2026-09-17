@@ -1,10 +1,15 @@
 import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from '../features/auth/context/AuthContext';
 
 /**
  * App-level providers wrapper.
- * Currently wraps with BrowserRouter for client-side routing.
- * Future providers (auth context, theme, etc.) will be added here.
+ * Wraps with BrowserRouter and AuthProvider.
  */
 export default function Providers({ children }) {
-  return <BrowserRouter>{children}</BrowserRouter>;
+  return (
+    <BrowserRouter>
+      <AuthProvider>{children}</AuthProvider>
+    </BrowserRouter>
+  );
 }
+

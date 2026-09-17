@@ -2,9 +2,22 @@ const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
   if (process.env.SMTP_USER && process.env.SMTP_PASS && process.env.SMTP_USER !== 'mock_user') {
+    if (
+      process.env.SMTP_SERVICE === 'gmail' ||
+      (process.env.SMTP_HOST && process.env.SMTP_HOST.includes('gmail'))
+    ) {
+      return nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+    }
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.mailtrap.io',
       port: Number(process.env.SMTP_PORT) || 2525,
+      secure: Number(process.env.SMTP_PORT) === 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,

@@ -5,12 +5,12 @@ import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 import useAuthForm from '../hooks/useAuthForm';
 import { validateForgotPasswordForm } from '../auth.validation';
-import { mockForgotPassword } from '../services/authMockApi';
+import { forgotPassword as forgotPasswordService } from '../services/auth.service';
 import styles from './ForgotPassword.module.css';
 
 /**
  * Forgot Password page.
- * User enters email to receive a password reset link.
+ * User enters email to receive a password reset token.
  */
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ export default function ForgotPassword() {
   );
 
   const onSubmit = formState.handleSubmit(async (values) => {
-    const result = await mockForgotPassword(values.email);
+    const result = await forgotPasswordService(values.email);
 
     if (result.success) {
       setEmailSent(true);
@@ -47,15 +47,19 @@ export default function ForgotPassword() {
           </div>
           <p className={styles.successTitle}>Email sent</p>
           <p className={styles.successText}>
-            We sent a password reset link to{' '}
+            We sent password reset instructions to{' '}
             <strong>{formState.values.email}</strong>. Check your inbox and
-            follow the instructions.
+            copy the reset token.
           </p>
           <Button
             variant="primary"
             fullWidth
             large
-            onClick={() => navigate('/reset-password')}
+            onClick={() =>
+              navigate('/reset-password', {
+                state: { email: formState.values.email },
+              })
+            }
           >
             Continue to reset password
           </Button>

@@ -83,12 +83,27 @@ export function validateForgotPasswordForm({ email }) {
   };
 }
 
-export function validateResetPasswordForm({ password, confirmPassword }) {
-  return {
+export function validateResetToken(token) {
+  if (!token || !token.trim()) {
+    return 'Reset token is required';
+  }
+  return '';
+}
+
+export function validateResetPasswordForm({ email, token, password, confirmPassword }) {
+  const errors = {
     password: validatePassword(password),
     confirmPassword: validateConfirmPassword(password, confirmPassword),
   };
+  if (email !== undefined) {
+    errors.email = validateEmail(email);
+  }
+  if (token !== undefined) {
+    errors.token = validateResetToken(token);
+  }
+  return errors;
 }
+
 
 /**
  * Password strength calculator.

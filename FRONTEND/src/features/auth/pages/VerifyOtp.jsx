@@ -2,9 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import AuthHeader from '../components/AuthHeader';
 import OtpInput from '../components/OtpInput';
+import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
-import { validateOtp } from '../auth.validation';
-import { mockVerifyOtp, mockResendOtp } from '../services/authMockApi';
+import { validateOtp, validateEmail } from '../auth.validation';
+import {
+  verifyOtp as verifyOtpService,
+  resendOtp as resendOtpService,
+} from '../services/auth.service';
 import styles from './VerifyOtp.module.css';
 
 const RESEND_COOLDOWN = 60; // seconds
@@ -16,12 +20,15 @@ const RESEND_COOLDOWN = 60; // seconds
 export default function VerifyOtp() {
   const navigate = useNavigate();
   const location = useLocation();
-  const email = location.state?.email || 'your email';
 
+  const [email, setEmail] = useState(location.state?.email || '');
+  const [emailError, setEmailError] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
   const [serverError, setServerError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState(
+    location.state?.message || '',
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendTimer, setResendTimer] = useState(RESEND_COOLDOWN);
@@ -41,11 +48,20 @@ export default function VerifyOtp() {
     setOtp(value);
     setError('');
     setServerError('');
-    setSuccessMessage('');
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!email) {
+      setEmailError('Email is required');
+      return;
+    }
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setEmailError(emailErr);
+      return;
+    }
 
     const otpError = validateOtp(otp);
     if (otpError) {
@@ -57,36 +73,47 @@ export default function VerifyOtp() {
     setServerError('');
 
     try {
-      const result = await mockVerifyOtp(email, otp);
+      const result = await verifyOtpService({ email, otp });
 
       if (result.success) {
-        setSuccessMessage('Email verified successfully!');
+        setSuccessMessage('Email verified successfully! Redirecting to login...');
         // Navigate to login after a brief delay
         setTimeout(() => navigate('/login'), 1500);
       } else {
-        setServerError(result.error);
+        setServerError(result.message || 'Verification failed');
         setOtp('');
       }
-    } catch {
-      setServerError('An unexpected error occurred');
+    } catch (err) {
+      setServerError(err.message || 'An unexpected error occurred');
+      setOtp('');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleResend = async () => {
+    if (!email) {
+      setEmailError('Please enter your email to resend the code');
+      return;
+    }
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      setEmailError(emailErr);
+      return;
+    }
+
     setIsResending(true);
     setServerError('');
 
     try {
-      const result = await mockResendOtp(email);
+      const result = await resendOtpService(email);
       if (result.success) {
-        setSuccessMessage('Verification code resent');
+        setSuccessMessage(result.message || 'Verification code resent');
         setResendTimer(RESEND_COOLDOWN);
         setOtp('');
       }
-    } catch {
-      setServerError('Failed to resend code');
+    } catch (err) {
+      setServerError(err.message || 'Failed to resend code');
     } finally {
       setIsResending(false);
     }
@@ -103,10 +130,14 @@ export default function VerifyOtp() {
       <AuthHeader
         title="Verify your email"
         subtitle={
-          <>
-            We sent a 6-digit code to{' '}
-            <span className={styles.emailHighlight}>{email}</span>
-          </>
+          email ? (
+            <>
+              We sent a 6-digit code to{' '}
+              <span className={styles.emailHighlight}>{email}</span>
+            </>
+          ) : (
+            'Enter your registered email and the 6-digit verification code'
+          )
         }
       />
 
@@ -123,6 +154,26 @@ export default function VerifyOtp() {
           {successMessage && (
             <div className={styles.successMessage} role="status">
               {successMessage}
+            </div>
+          )}
+
+          {/* Fallback Email Input if not present in state */}
+          {!location.state?.email && (
+            <div style={{ marginBottom: '16px', width: '100%' }}>
+              <Input
+                id="otp-email"
+                name="email"
+                type="email"
+                label="Registered Email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setEmailError('');
+                }}
+                error={emailError}
+                required
+              />
             </div>
           )}
 

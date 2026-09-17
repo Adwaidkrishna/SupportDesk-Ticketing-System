@@ -75,15 +75,17 @@ export default function useAuthForm(initialValues, validate) {
       try {
         const result = await onSubmit(values);
 
-        if (result && !result.success) {
-          setServerError(result.error || 'Something went wrong');
-        } else if (result && result.data?.message) {
-          setSuccessMessage(result.data.message);
+        if (result && result.success === false) {
+          setServerError(result.error || result.message || 'Something went wrong');
+        } else if (result && (result.data?.message || result.message)) {
+          setSuccessMessage(result.data?.message || result.message);
         }
 
         return result;
       } catch (err) {
-        setServerError('An unexpected error occurred');
+        const errorMsg = err?.message || 'An unexpected error occurred';
+        setServerError(errorMsg);
+        return { success: false, error: errorMsg, err };
       } finally {
         setIsSubmitting(false);
       }

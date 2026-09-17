@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import ProtectedRoute from '../components/common/ProtectedRoute';
+import GuestRoute from '../components/common/GuestRoute';
 import AuthLayout from '../layouts/AuthLayout';
 import CustomerLayout from '../layouts/CustomerLayout';
 import Login from '../features/auth/pages/Login';
@@ -46,58 +48,69 @@ export default function AppRoutes() {
       {/* Redirect root to login */}
       <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* Standalone Video Call Workspace Route */}
-      <Route path="/ticket/:ticketId/call" element={<VideoCallPage />} />
-
-      {/* Auth routes — wrapped in AuthLayout */}
-      <Route element={<AuthLayout />}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/verify-otp" element={<VerifyOtp />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+      {/* Auth routes — wrapped in GuestRoute and AuthLayout */}
+      <Route element={<GuestRoute />}>
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/verify-otp" element={<VerifyOtp />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+        </Route>
       </Route>
 
-      {/* Customer routes — wrapped in CustomerLayout */}
-      <Route element={<CustomerLayout />}>
-        <Route path="/customer/dashboard" element={<CustomerDashboard />} />
-        <Route path="/customer/create-ticket" element={<CreateTicket />} />
-        <Route path="/customer/tickets" element={<MyTickets />} />
-        <Route path="/customer/my-tickets" element={<MyTickets />} />
-        <Route path="/customer/tickets/:ticketId" element={<TicketDetails />} />
-        <Route path="/customer/notifications" element={<CustomerNotifications />} />
-        <Route path="/customer/knowledge-base" element={<KnowledgeBase />} />
-        <Route path="/customer/knowledge-base/:articleId" element={<ArticleDetails />} />
-        <Route path="/customer/profile" element={<CustomerProfile />} />
-        <Route path="/customer/settings" element={<CustomerProfile />} />
+      {/* Standalone Video Call Workspace Route (Protected) */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/ticket/:ticketId/call" element={<VideoCallPage />} />
       </Route>
 
-      {/* Agent routes — wrapped in AgentLayout */}
-      <Route element={<AgentLayout />}>
-        <Route path="/agent/dashboard" element={<AgentDashboard />} />
-        <Route path="/agent/queue" element={<MyQueue />} />
-        <Route path="/agent/tickets" element={<AllTickets />} />
-        <Route path="/agent/escalated" element={<EscalatedTickets />} />
-        <Route path="/agent/tickets/:ticketId" element={<AgentTicketDetails />} />
-        <Route path="/agent/notifications" element={<AgentNotifications />} />
-        <Route path="/agent/profile" element={<AgentProfile />} />
-        <Route path="/agent/settings" element={<AgentProfile />} />
-        <Route path="/agent/knowledge-base" element={<KnowledgeBase />} />
-        <Route path="/agent/knowledge-base/:articleId" element={<ArticleDetails />} />
+      {/* Customer routes — protected for customer role */}
+      <Route element={<ProtectedRoute allowedRoles={['customer']} />}>
+        <Route element={<CustomerLayout />}>
+          <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+          <Route path="/customer/create-ticket" element={<CreateTicket />} />
+          <Route path="/customer/tickets" element={<MyTickets />} />
+          <Route path="/customer/my-tickets" element={<MyTickets />} />
+          <Route path="/customer/tickets/:ticketId" element={<TicketDetails />} />
+          <Route path="/customer/notifications" element={<CustomerNotifications />} />
+          <Route path="/customer/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/customer/knowledge-base/:articleId" element={<ArticleDetails />} />
+          <Route path="/customer/profile" element={<CustomerProfile />} />
+          <Route path="/customer/settings" element={<CustomerProfile />} />
+        </Route>
       </Route>
 
-      {/* Admin routes — wrapped in AdminLayout */}
-      <Route element={<AdminLayout />}>
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/tickets" element={<AdminTickets />} />
-        <Route path="/admin/tickets/:ticketId" element={<AdminTicketDetails />} />
-        <Route path="/admin/users" element={<Users />} />
-        <Route path="/admin/agents" element={<Agents />} />
-        <Route path="/admin/categories" element={<Categories />} />
-        <Route path="/admin/sla" element={<SLA />} />
-        <Route path="/admin/reports" element={<Reports />} />
-        <Route path="/admin/settings" element={<Settings />} />
+      {/* Agent routes — protected for agent and admin roles */}
+      <Route element={<ProtectedRoute allowedRoles={['agent', 'admin']} />}>
+        <Route element={<AgentLayout />}>
+          <Route path="/agent/dashboard" element={<AgentDashboard />} />
+          <Route path="/agent/queue" element={<MyQueue />} />
+          <Route path="/agent/tickets" element={<AllTickets />} />
+          <Route path="/agent/escalated" element={<EscalatedTickets />} />
+          <Route path="/agent/tickets/:ticketId" element={<AgentTicketDetails />} />
+          <Route path="/agent/notifications" element={<AgentNotifications />} />
+          <Route path="/agent/profile" element={<AgentProfile />} />
+          <Route path="/agent/settings" element={<AgentProfile />} />
+          <Route path="/agent/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/agent/knowledge-base/:articleId" element={<ArticleDetails />} />
+        </Route>
+      </Route>
+
+      {/* Admin routes — protected for admin role */}
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route element={<AdminLayout />}>
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/tickets" element={<AdminTickets />} />
+          <Route path="/admin/tickets/:ticketId" element={<AdminTicketDetails />} />
+          <Route path="/admin/users" element={<Users />} />
+          <Route path="/admin/agents" element={<Agents />} />
+          <Route path="/admin/categories" element={<Categories />} />
+          <Route path="/admin/sla" element={<SLA />} />
+          <Route path="/admin/reports" element={<Reports />} />
+          <Route path="/admin/settings" element={<Settings />} />
+        </Route>
       </Route>
     </Routes>
   );
 }
+
