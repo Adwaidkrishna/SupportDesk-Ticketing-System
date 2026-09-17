@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { myQueueTickets } from '../agentMockData';
+import Select from '../../../components/common/Select';
 import styles from './MyQueue.module.css';
 
 export default function MyQueue() {
@@ -120,39 +121,39 @@ export default function MyQueue() {
           </div>
 
           <div className={styles.selectsRow}>
-            <select
-              className={styles.selectInput}
+            <Select
+              options={[
+                { value: 'all', label: 'All Priorities' },
+                { value: 'critical', label: 'Critical Priority', badge: 'P1', badgeColor: '#FF453A' },
+                { value: 'high', label: 'High Priority', badge: 'P2', badgeColor: '#FF9F0A' },
+                { value: 'medium', label: 'Medium Priority', badge: 'P3', badgeColor: '#64D2FF' },
+                { value: 'low', label: 'Low Priority', badge: 'P4', badgeColor: '#94A3B8' },
+              ]}
               value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-            >
-              <option value="all">All Priorities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
+              onChange={setPriorityFilter}
+            />
 
-            <select
-              className={styles.selectInput}
+            <Select
+              options={[
+                { value: 'all', label: 'All Categories' },
+                { value: 'account', label: 'Account' },
+                { value: 'billing', label: 'Billing' },
+                { value: 'technical', label: 'Technical' },
+                { value: 'integrations', label: 'Integrations' },
+              ]}
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="all">All Categories</option>
-              <option value="account">Account</option>
-              <option value="billing">Billing</option>
-              <option value="technical">Technical</option>
-              <option value="integrations">Integrations</option>
-            </select>
+              onChange={setCategoryFilter}
+            />
 
-            <select
-              className={styles.selectInput}
+            <Select
+              options={[
+                { value: 'all', label: 'All SLA Status' },
+                { value: 'at_risk', label: 'At Risk', badge: 'Risk', badgeColor: '#FF9F0A' },
+                { value: 'normal', label: 'Within SLA', badge: 'Met', badgeColor: '#30D158' },
+              ]}
               value={slaFilter}
-              onChange={(e) => setSlaFilter(e.target.value)}
-            >
-              <option value="all">All SLA Status</option>
-              <option value="at_risk">At Risk</option>
-              <option value="normal">Within SLA</option>
-            </select>
+              onChange={setSlaFilter}
+            />
           </div>
         </div>
 

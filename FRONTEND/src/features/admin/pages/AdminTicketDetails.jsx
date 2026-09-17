@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { sampleTicketDetails, adminAgentsList } from '../adminMockData';
+import Select from '../../../components/common/Select';
 import styles from './AdminTicketDetails.module.css';
 
 export default function AdminTicketDetails() {
@@ -319,50 +320,52 @@ export default function AdminTicketDetails() {
             <div className={styles.controlsForm}>
               {/* Status Control */}
               <div className={styles.controlGroup}>
-                <label>Change Status</label>
-                <select
-                  className={styles.controlSelect}
+                <Select
+                  label="Change Status"
+                  options={[
+                    { value: 'Open', label: 'Open', subtitle: 'New unhandled ticket', badge: 'Open', badgeColor: '#0A84FF' },
+                    { value: 'In Progress', label: 'In Progress', subtitle: 'Under investigation', badge: 'Active', badgeColor: '#FFD60A' },
+                    { value: 'Waiting for Customer', label: 'Waiting for Customer', subtitle: 'Awaiting customer input', badge: 'Waiting', badgeColor: '#FF9F0A' },
+                    { value: 'Resolved', label: 'Resolved', subtitle: 'Resolved ticket', badge: 'Resolved', badgeColor: '#30D158' },
+                    { value: 'Closed', label: 'Closed', subtitle: 'Closed ticket', badge: 'Closed', badgeColor: '#64748B' },
+                  ]}
                   value={ticket.status}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                >
-                  <option value="Open">Open</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Waiting for Customer">Waiting for Customer</option>
-                  <option value="Resolved">Resolved</option>
-                  <option value="Closed">Closed</option>
-                </select>
+                  onChange={handleStatusChange}
+                />
               </div>
 
               {/* Priority Control */}
               <div className={styles.controlGroup}>
-                <label>Change Priority</label>
-                <select
-                  className={styles.controlSelect}
+                <Select
+                  label="Change Priority"
+                  options={[
+                    { value: 'Critical', label: 'Critical', subtitle: 'System outage / Blocker', badge: 'P1', badgeColor: '#FF453A' },
+                    { value: 'High', label: 'High', subtitle: 'High severity impact', badge: 'P2', badgeColor: '#FF9F0A' },
+                    { value: 'Medium', label: 'Medium', subtitle: 'Standard ticket', badge: 'P3', badgeColor: '#64D2FF' },
+                    { value: 'Low', label: 'Low', subtitle: 'Low priority task', badge: 'P4', badgeColor: '#94A3B8' },
+                  ]}
                   value={ticket.priority}
-                  onChange={(e) => handlePriorityChange(e.target.value)}
-                >
-                  <option value="Critical">Critical</option>
-                  <option value="High">High</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Low">Low</option>
-                </select>
+                  onChange={handlePriorityChange}
+                />
               </div>
 
               {/* Agent Reassignment Control */}
               <div className={styles.controlGroup}>
-                <label>Assign Agent</label>
-                <select
-                  className={styles.controlSelect}
+                <Select
+                  label="Assign Agent"
+                  options={[
+                    { value: 'Unassigned', label: 'Unassigned', subtitle: 'No agent assigned', initials: 'UN' },
+                    ...adminAgentsList.map((a) => ({
+                      value: a.name,
+                      label: a.name,
+                      subtitle: a.department,
+                      initials: a.initials || a.name.split(' ').map((n) => n[0]).join(''),
+                      badge: a.role,
+                    })),
+                  ]}
                   value={ticket.assignedAgent}
-                  onChange={(e) => handleAgentReassign(e.target.value)}
-                >
-                  <option value="Unassigned">Unassigned</option>
-                  {adminAgentsList.map((a) => (
-                    <option key={a.id} value={a.name}>
-                      {a.name} ({a.department})
-                    </option>
-                  ))}
-                </select>
+                  onChange={handleAgentReassign}
+                />
               </div>
 
               <div className={styles.actionBtnsRow}>

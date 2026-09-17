@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { currentAgent } from '../features/agent/agentMockData';
+import Select from '../components/common/Select';
 import styles from './AgentLayout.module.css';
 
 /**
@@ -170,19 +171,16 @@ export default function AgentLayout() {
 
         {/* Status & Portal Switcher Card */}
         <div className={styles.agentStatusCard}>
-          <div className={styles.statusHeader}>
-            <span className={styles.statusDot} style={{ backgroundColor: availability === 'Available' ? '#30D158' : '#FFD60A' }} />
-            <select
-              className={styles.statusSelect}
+            <Select
+              options={[
+                { value: 'Available', label: 'Available', subtitle: 'Ready for tickets', badge: 'Online', badgeColor: '#30D158' },
+                { value: 'Busy', label: 'Busy', subtitle: 'In active call/triage', badge: 'Busy', badgeColor: '#FF453A' },
+                { value: 'Away', label: 'Away', subtitle: 'On break', badge: 'Away', badgeColor: '#FFD60A' },
+                { value: 'Offline', label: 'Offline', subtitle: 'Not accepting tickets', badge: 'Offline', badgeColor: '#64748B' },
+              ]}
               value={availability}
-              onChange={(e) => setAvailability(e.target.value)}
-            >
-              <option value="Available">🟢 Available</option>
-              <option value="Busy">🔴 Busy</option>
-              <option value="Away">🟡 Away</option>
-              <option value="Offline">⚪ Offline</option>
-            </select>
-          </div>
+              onChange={setAvailability}
+            />
           <button
             type="button"
             className={styles.portalSwitchBtn}

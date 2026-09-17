@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { sampleTicketDetails, currentAgent } from '../agentMockData';
+import Select from '../../../components/common/Select';
 import styles from './AgentTicketDetails.module.css';
 
 import CallConfirmationModal from '../../video-call/components/CallConfirmationModal';
@@ -399,48 +400,48 @@ export default function AgentTicketDetails() {
             <h3 className={styles.sideTitle}>Agent Controls</h3>
 
             <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Ticket Status</label>
-              <select
-                className={styles.controlSelect}
+              <Select
+                label="Ticket Status"
+                options={[
+                  { value: 'Open', label: 'Open', subtitle: 'New unhandled ticket', badge: 'Open', badgeColor: '#0A84FF' },
+                  { value: 'In Progress', label: 'In Progress', subtitle: 'Currently being investigated', badge: 'Active', badgeColor: '#FFD60A' },
+                  { value: 'Waiting for Customer', label: 'Waiting for Customer', subtitle: 'Awaiting customer response', badge: 'Waiting', badgeColor: '#FF9F0A' },
+                  { value: 'Resolved', label: 'Resolved', subtitle: 'Issue solved', badge: 'Resolved', badgeColor: '#30D158' },
+                ]}
                 value={ticket.status}
-                onChange={(e) => handleStatusChange(e.target.value)}
-              >
-                <option value="Open">Open</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Waiting for Customer">Waiting for Customer</option>
-                <option value="Resolved">Resolved</option>
-              </select>
+                onChange={handleStatusChange}
+              />
             </div>
 
             <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Priority Level</label>
-              <select
-                className={styles.controlSelect}
+              <Select
+                label="Priority Level"
+                options={[
+                  { value: 'Critical', label: 'Critical', subtitle: 'Outage / Blocker', badge: 'P1', badgeColor: '#FF453A' },
+                  { value: 'High', label: 'High', subtitle: 'Major feature broken', badge: 'P2', badgeColor: '#FF9F0A' },
+                  { value: 'Medium', label: 'Medium', subtitle: 'Standard issue', badge: 'P3', badgeColor: '#64D2FF' },
+                  { value: 'Low', label: 'Low', subtitle: 'Minor glitch / Question', badge: 'P4', badgeColor: '#94A3B8' },
+                ]}
                 value={ticket.priority}
-                onChange={(e) => handlePriorityChange(e.target.value)}
-              >
-                <option value="Critical">Critical</option>
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-              </select>
+                onChange={handlePriorityChange}
+              />
             </div>
 
             <div className={styles.controlGroup}>
-              <label className={styles.controlLabel}>Assigned Agent</label>
-              <select
-                className={styles.controlSelect}
+              <Select
+                label="Assigned Agent"
+                options={[
+                  { value: 'Alex Johnson', label: 'Alex Johnson (Me)', subtitle: 'Customer Support', initials: 'AJ', badge: 'Me' },
+                  { value: 'Sarah Chen', label: 'Sarah Chen (Tier 2)', subtitle: 'Support Agent', initials: 'SC', badge: 'Agent' },
+                  { value: 'David Miller', label: 'David Miller (DevOps)', subtitle: 'Administrator', initials: 'DM', badge: 'Admin' },
+                  { value: 'Unassigned', label: 'Unassigned', subtitle: 'No role assigned', initials: 'UN' },
+                ]}
                 value={ticket.assignedAgent}
-                onChange={(e) => {
-                  setTicket((prev) => ({ ...prev, assignedAgent: e.target.value }));
-                  showToast(`Assigned agent changed to ${e.target.value}`);
+                onChange={(val) => {
+                  setTicket((prev) => ({ ...prev, assignedAgent: val }));
+                  showToast(`Assigned agent changed to ${val}`);
                 }}
-              >
-                <option value="Alex Johnson">Alex Johnson (Me)</option>
-                <option value="Sarah Chen">Sarah Chen (Tier 2)</option>
-                <option value="David Miller">David Miller (DevOps)</option>
-                <option value="Unassigned">Unassigned</option>
-              </select>
+              />
             </div>
           </div>
 

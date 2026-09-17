@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { adminUsersList } from '../adminMockData';
+import Select from '../../../components/common/Select';
 import styles from './Users.module.css';
 
 export default function Users() {
@@ -150,17 +151,15 @@ export default function Users() {
             />
           </div>
 
-          <div className={styles.filterGroup}>
-            <select
-              className={styles.filterSelect}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
+          <Select
+            options={[
+              { value: 'all', label: 'All Statuses' },
+              { value: 'Active', label: 'Active', badge: 'Active', badgeColor: '#30D158' },
+              { value: 'Inactive', label: 'Inactive', badge: 'Inactive', badgeColor: '#64748B' },
+            ]}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
         </div>
       </div>
 
@@ -339,17 +338,15 @@ export default function Users() {
                   />
                 </div>
 
-                <div className={styles.formGroup}>
-                  <label>Status</label>
-                  <select
-                    className={styles.select}
-                    value={editFormData.status}
-                    onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+                <Select
+                  label="Status"
+                  options={[
+                    { value: 'Active', label: 'Active', badge: 'Active', badgeColor: '#30D158' },
+                    { value: 'Inactive', label: 'Inactive', badge: 'Inactive', badgeColor: '#64748B' },
+                  ]}
+                  value={editFormData.status}
+                  onChange={(val) => setEditFormData({ ...editFormData, status: val })}
+                />
               </div>
 
               <div className={styles.modalFooter}>

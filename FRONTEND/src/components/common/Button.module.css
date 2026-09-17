@@ -1,5 +1,5 @@
 /* ============================================
-   Button Component
+   Button Component — iOS Dark Style
    ============================================ */
 
 .button {
@@ -8,83 +8,89 @@
   justify-content: center;
   gap: var(--space-2);
   font-family: var(--font-family);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
   line-height: 1;
-  padding: var(--space-3) var(--space-5);
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  padding: 12px 20px;
+  border-radius: var(--radius-md); /* 10px - 12px (not fully rounded) */
+  border: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
-  transition:
-    background-color var(--transition-fast),
-    border-color var(--transition-fast),
-    transform var(--transition-fast),
-    box-shadow var(--transition-fast),
-    opacity var(--transition-fast);
+  transition: all var(--transition-fast);
   position: relative;
   overflow: hidden;
   user-select: none;
+  white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
 }
 
+.buttonText {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .button:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: scale(0.98);
 }
 
 .button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  transform: none !important;
 }
 
 /* — Variants — */
 
 .primary {
-  background-color: var(--color-accent);
-  color: #ffffff;
+  background: linear-gradient(180deg, #0A84FF 0%, #0066CC 100%);
+  color: #FFFFFF;
+  box-shadow: 0 2px 10px rgba(10, 132, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .primary:hover:not(:disabled) {
-  background-color: var(--color-accent-hover);
-}
-
-.primary:active:not(:disabled) {
-  background-color: var(--color-accent-pressed);
-}
-
-.primary:focus-visible {
-  box-shadow: var(--shadow-glow);
-  outline: none;
+  background: linear-gradient(180deg, #3898FF 0%, #0A84FF 100%);
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.45);
 }
 
 .secondary {
-  background-color: transparent;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--color-text-primary);
-  border-color: var(--color-border-subtle);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .secondary:hover:not(:disabled) {
-  background-color: var(--color-surface-raised);
-  border-color: var(--color-text-tertiary);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
-.secondary:focus-visible {
-  border-color: var(--color-border-focus);
-  box-shadow: var(--shadow-glow);
-  outline: none;
+.secondary:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .ghost {
-  background-color: transparent;
+  background: transparent;
   color: var(--color-accent);
-  padding: var(--space-2) var(--space-3);
+  padding: 8px 12px;
 }
 
 .ghost:hover:not(:disabled) {
-  background-color: rgba(10, 132, 255, 0.08);
+  background: rgba(10, 132, 255, 0.12);
 }
 
-.ghost:focus-visible {
-  box-shadow: var(--shadow-glow);
+.danger {
+  background: rgba(255, 69, 58, 0.15);
+  color: #FF453A;
+  border-color: rgba(255, 69, 58, 0.3);
+}
+
+.danger:hover:not(:disabled) {
+  background: rgba(255, 69, 58, 0.25);
+  border-color: rgba(255, 69, 58, 0.5);
+}
+
+.button:focus-visible {
+  box-shadow: var(--shadow-focus);
   outline: none;
 }
 
@@ -95,15 +101,29 @@
 }
 
 .large {
-  padding: var(--space-4) var(--space-6);
-  font-size: var(--font-size-md);
-  border-radius: var(--radius-lg);
+  padding: 14px 24px;
+  font-size: var(--font-size-base);
+  border-radius: var(--radius-lg); /* 14px */
+}
+
+.small {
+  padding: 6px 14px;
+  font-size: var(--font-size-xs);
+  border-radius: var(--radius-sm); /* 8px */
+}
+
+.iconOnly {
+  padding: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  justify-content: center;
 }
 
 /* — Loading — */
 
-.loading {
-  color: transparent !important;
+.loading .buttonText {
+  visibility: hidden;
 }
 
 .spinner {
@@ -117,6 +137,6 @@
 }
 
 .secondarySpinner {
-  border-color: rgba(142, 142, 147, 0.25);
+  border-color: rgba(148, 163, 184, 0.25);
   border-top-color: var(--color-text-secondary);
 }

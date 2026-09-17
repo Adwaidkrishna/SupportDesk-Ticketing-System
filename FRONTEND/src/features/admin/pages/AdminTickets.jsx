@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAllTickets, adminAgentsList } from '../adminMockData';
+import Select from '../../../components/common/Select';
 import styles from './AdminTickets.module.css';
 
 export default function AdminTickets() {
@@ -117,88 +118,77 @@ export default function AdminTickets() {
 
         <div className={styles.filtersGrid}>
           {/* Status Filter */}
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Status</label>
-            <select
-              className={styles.filterSelect}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Statuses</option>
-              <option value="Open">Open</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Waiting for Customer">Waiting for Customer</option>
-              <option value="Resolved">Resolved</option>
-              <option value="Closed">Closed</option>
-            </select>
-          </div>
+          <Select
+            label="Status"
+            options={[
+              { value: 'all', label: 'All Statuses' },
+              { value: 'Open', label: 'Open', badge: 'Open', badgeColor: '#0A84FF' },
+              { value: 'In Progress', label: 'In Progress', badge: 'Active', badgeColor: '#FFD60A' },
+              { value: 'Waiting for Customer', label: 'Waiting for Customer', badge: 'Waiting', badgeColor: '#FF9F0A' },
+              { value: 'Resolved', label: 'Resolved', badge: 'Resolved', badgeColor: '#30D158' },
+              { value: 'Closed', label: 'Closed', badge: 'Closed', badgeColor: '#64748B' },
+            ]}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
 
           {/* Priority Filter */}
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Priority</label>
-            <select
-              className={styles.filterSelect}
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-            >
-              <option value="all">All Priorities</option>
-              <option value="Critical">Critical</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
-          </div>
+          <Select
+            label="Priority"
+            options={[
+              { value: 'all', label: 'All Priorities' },
+              { value: 'Critical', label: 'Critical', badge: 'P1', badgeColor: '#FF453A' },
+              { value: 'High', label: 'High', badge: 'P2', badgeColor: '#FF9F0A' },
+              { value: 'Medium', label: 'Medium', badge: 'P3', badgeColor: '#64D2FF' },
+              { value: 'Low', label: 'Low', badge: 'P4', badgeColor: '#94A3B8' },
+            ]}
+            value={priorityFilter}
+            onChange={setPriorityFilter}
+          />
 
           {/* Category Filter */}
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Category</label>
-            <select
-              className={styles.filterSelect}
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="all">All Categories</option>
-              <option value="Technical Support">Technical Support</option>
-              <option value="Account & Access">Account & Access</option>
-              <option value="Billing">Billing</option>
-              <option value="Payments">Payments</option>
-              <option value="Infrastructure">Infrastructure</option>
-              <option value="Bug Report">Bug Report</option>
-            </select>
-          </div>
+          <Select
+            label="Category"
+            options={[
+              { value: 'all', label: 'All Categories' },
+              { value: 'Account & Billing', label: 'Account & Billing' },
+              { value: 'Infrastructure', label: 'Infrastructure' },
+              { value: 'Integrations', label: 'Integrations' },
+              { value: 'Security', label: 'Security' },
+            ]}
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+          />
 
           {/* Agent Filter */}
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Agent</label>
-            <select
-              className={styles.filterSelect}
-              value={agentFilter}
-              onChange={(e) => setAgentFilter(e.target.value)}
-            >
-              <option value="all">All Agents</option>
-              <option value="Unassigned">Unassigned</option>
-              {adminAgentsList.map((a) => (
-                <option key={a.id} value={a.name}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Assigned Agent"
+            options={[
+              { value: 'all', label: 'All Agents' },
+              { value: 'unassigned', label: 'Unassigned', initials: 'UN' },
+              ...adminAgentsList.map((a) => ({
+                value: a.name,
+                label: a.name,
+                subtitle: a.department,
+                initials: a.initials || a.name.split(' ').map((n) => n[0]).join(''),
+              })),
+            ]}
+            value={agentFilter}
+            onChange={setAgentFilter}
+          />
 
-          {/* SLA Filter */}
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>SLA Status</label>
-            <select
-              className={styles.filterSelect}
-              value={slaFilter}
-              onChange={(e) => setSlaFilter(e.target.value)}
-            >
-              <option value="all">All SLA States</option>
-              <option value="within">Within SLA</option>
-              <option value="at_risk">At Risk</option>
-              <option value="breached">SLA Breached</option>
-            </select>
-          </div>
+          {/* SLA Status Filter */}
+          <Select
+            label="SLA Status"
+            options={[
+              { value: 'all', label: 'All SLA Statuses' },
+              { value: 'within', label: 'Within SLA', badge: 'OK', badgeColor: '#30D158' },
+              { value: 'risk', label: 'At Risk', badge: 'Risk', badgeColor: '#FF9F0A' },
+              { value: 'breached', label: 'Breached', badge: 'Breached', badgeColor: '#FF453A' },
+            ]}
+            value={slaFilter}
+            onChange={setSlaFilter}
+          />
         </div>
       </div>
 

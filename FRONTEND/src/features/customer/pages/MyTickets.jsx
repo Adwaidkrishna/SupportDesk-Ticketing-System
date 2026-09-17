@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { recentTicketsList } from '../customerMockData';
 import Button from '../../../components/common/Button';
+import Select from '../../../components/common/Select';
 import styles from './MyTickets.module.css';
 
 /**
@@ -163,32 +164,25 @@ export default function MyTickets() {
 
         {/* Select Dropdowns: Category & Sort */}
         <div className={styles.filtersRow}>
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Category:</label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className={styles.select}
-            >
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat === 'All' ? 'All Categories' : cat}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Category"
+            options={categories.map((cat) => ({
+              value: cat,
+              label: cat === 'All' ? 'All Categories' : cat,
+            }))}
+            value={selectedCategory}
+            onChange={setSelectedCategory}
+          />
 
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>Sort:</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className={styles.select}
-            >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-            </select>
-          </div>
+          <Select
+            label="Sort"
+            options={[
+              { value: 'newest', label: 'Newest first' },
+              { value: 'oldest', label: 'Oldest first' },
+            ]}
+            value={sortBy}
+            onChange={setSortBy}
+          />
         </div>
       </div>
 

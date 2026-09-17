@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
+import Select from '../../../components/common/Select';
 import styles from './CreateTicket.module.css';
 
 /**
@@ -188,55 +189,37 @@ export default function CreateTicket() {
         {/* Row for Category & Priority */}
         <div className={styles.rowTwoCol}>
           {/* Category */}
-          <div className={styles.fieldGroup}>
-            <label htmlFor="ticket-category" className={styles.label}>
-              Category <span className={styles.required}>*</span>
-            </label>
-            <div className={styles.selectWrapper}>
-              <select
-                id="ticket-category"
-                name="category"
-                value={formValues.category}
-                onChange={handleChange}
-                className={`${styles.select} ${errors.category ? styles.hasError : ''}`}
-              >
-                {categories.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-              <svg className={styles.selectChevron} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </div>
-            {errors.category && <span className={styles.errorMessage}>{errors.category}</span>}
-          </div>
+          <Select
+            label="Category *"
+            options={[
+              { value: 'Technical', label: 'Technical', subtitle: 'Software & hardware issues', badge: 'Tech' },
+              { value: 'Account', label: 'Account', subtitle: 'Access & login issues', badge: 'User' },
+              { value: 'Billing', label: 'Billing', subtitle: 'Invoices & subscriptions', badge: 'Fin' },
+              { value: 'Feature Request', label: 'Feature Request', subtitle: 'New feature suggestions', badge: 'Idea' },
+              { value: 'Other', label: 'Other', subtitle: 'General inquiries', badge: 'Info' },
+            ]}
+            value={formValues.category}
+            onChange={(val) => {
+              setFormValues((prev) => ({ ...prev, category: val }));
+              if (errors.category) setErrors((prev) => ({ ...prev, category: '' }));
+            }}
+            placeholder="Select category..."
+            error={errors.category}
+          />
 
           {/* Priority */}
-          <div className={styles.fieldGroup}>
-            <label htmlFor="ticket-priority" className={styles.label}>
-              Priority
-            </label>
-            <div className={styles.selectWrapper}>
-              <select
-                id="ticket-priority"
-                name="priority"
-                value={formValues.priority}
-                onChange={handleChange}
-                className={styles.select}
-              >
-                {priorities.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-              <svg className={styles.selectChevron} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </div>
-          </div>
+          <Select
+            label="Priority"
+            options={[
+              { value: 'Low', label: 'Low', subtitle: 'Minor inconvenience', badge: 'Low', badgeColor: '#64748B' },
+              { value: 'Medium', label: 'Medium', subtitle: 'Normal issue', badge: 'Medium', badgeColor: '#0A84FF' },
+              { value: 'High', label: 'High', subtitle: 'Significant impact', badge: 'High', badgeColor: '#FF9F0A' },
+              { value: 'Urgent', label: 'Urgent', subtitle: 'System down / Critical', badge: 'Urgent', badgeColor: '#FF453A' },
+            ]}
+            value={formValues.priority}
+            onChange={(val) => setFormValues((prev) => ({ ...prev, priority: val }))}
+            placeholder="Select priority..."
+          />
         </div>
 
         {/* Description Textarea */}

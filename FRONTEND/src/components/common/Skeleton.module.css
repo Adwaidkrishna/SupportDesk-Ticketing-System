@@ -1,0 +1,36 @@
+/* ============================================
+   Skeleton Component CSS — Pulse Glow Animation
+   ============================================ */
+
+.skeleton {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  animation: pulseGlow 1.5s ease-in-out infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.text {
+  height: 14px;
+  width: 100%;
+  margin-bottom: 6px;
+  border-radius: 4px;
+}
+
+.circle {
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+}
+
+.rect {
+  width: 100%;
+  height: 120px;
+  border-radius: var(--radius-md);
+}
+
+.card {
+  width: 100%;
+  height: 160px;
+  border-radius: var(--radius-lg);
+}

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { allAgentTicketsList } from '../agentMockData';
+import Select from '../../../components/common/Select';
 import styles from './AllTickets.module.css';
 
 export default function AllTickets() {
@@ -114,39 +115,39 @@ export default function AllTickets() {
           </div>
 
           <div className={styles.selectsRow}>
-            <select
-              className={styles.selectInput}
+            <Select
+              options={[
+                { value: 'all', label: 'All Agents' },
+                { value: 'my_tickets', label: 'Assigned to Me', initials: 'ME' },
+                { value: 'unassigned', label: 'Unassigned Only', initials: 'UN' },
+              ]}
               value={agentFilter}
-              onChange={(e) => setAgentFilter(e.target.value)}
-            >
-              <option value="all">All Agents</option>
-              <option value="my_tickets">Assigned to Me</option>
-              <option value="unassigned">Unassigned Only</option>
-            </select>
+              onChange={setAgentFilter}
+            />
 
-            <select
-              className={styles.selectInput}
+            <Select
+              options={[
+                { value: 'all', label: 'All Priorities' },
+                { value: 'critical', label: 'Critical', badge: 'P1', badgeColor: '#FF453A' },
+                { value: 'high', label: 'High', badge: 'P2', badgeColor: '#FF9F0A' },
+                { value: 'medium', label: 'Medium', badge: 'P3', badgeColor: '#64D2FF' },
+                { value: 'low', label: 'Low', badge: 'P4', badgeColor: '#94A3B8' },
+              ]}
               value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
-            >
-              <option value="all">All Priorities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
+              onChange={setPriorityFilter}
+            />
 
-            <select
-              className={styles.selectInput}
+            <Select
+              options={[
+                { value: 'all', label: 'All Categories' },
+                { value: 'account', label: 'Account' },
+                { value: 'billing', label: 'Billing' },
+                { value: 'technical', label: 'Technical' },
+                { value: 'integrations', label: 'Integrations' },
+              ]}
               value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="all">All Categories</option>
-              <option value="account">Account</option>
-              <option value="billing">Billing</option>
-              <option value="technical">Technical</option>
-              <option value="integrations">Integrations</option>
-            </select>
+              onChange={setCategoryFilter}
+            />
           </div>
         </div>
 
