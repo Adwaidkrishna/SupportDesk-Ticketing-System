@@ -1,7 +1,10 @@
 const bcrypt = require('bcryptjs');
 
+// OWASP 2024 recommends minimum cost factor 12 for bcrypt
+const BCRYPT_ROUNDS = 12;
+
 const hashPassword = async (password) => {
-  const salt = await bcrypt.genSalt(10);
+  const salt = await bcrypt.genSalt(BCRYPT_ROUNDS);
   return bcrypt.hash(password, salt);
 };
 

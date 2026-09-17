@@ -1,15 +1,45 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 
-// Middlewares
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ─── Security Headers (H-05 FIX) ─────────────────────────────────────────────
+// Helmet sets: X-Content-Type-Options, X-Frame-Options, Strict-Transport-Security,
+// X-XSS-Protection, Referrer-Policy, and more.
+app.use(helmet());
 
-// Health Check
+// ─── CORS (H-04 FIX) ─────────────────────────────────────────────────────────
+// Explicit allowlist from environment — NOT 'origin: true' (reflects any origin).
+const rawOrigins = process.env.ALLOWED_ORIGINS || 'http://localhost:5173';
+const allowedOrigins = rawOrigins.split(',').map((o) => o.trim());
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g., server-to-server, Postman, curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // Return 403 — do not reflect origin or expose details
+      const corsErr = new Error('CORS policy: request origin not permitted.');
+      corsErr.statusCode = 403;
+      return callback(corsErr, false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
+// ─── Body Parsing (L-01 FIX) ─────────────────────────────────────────────────
+// Explicit 50kb limit — auth payloads are small; no reason to accept large bodies.
+app.use(express.json({ limit: '50kb' }));
+app.use(express.urlencoded({ extended: true, limit: '50kb' }));
+
+// ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
@@ -18,10 +48,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API v1 Routes
+// ─── API v1 Routes ────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
 
-// 404 Handler
+// ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
   res.status(404).json({
     success: false,
@@ -29,16 +59,24 @@ app.use((req, res, next) => {
   });
 });
 
-// Global Error Handler
+// ─── Global Error Handler ─────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   const statusCode = err.statusCode || 500;
+
+  // M-03 FIX: Stack traces ONLY in development mode
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // Safe log — no sensitive data
   console.error(`[API Error ${statusCode}] ${err.message}`);
 
   res.status(statusCode).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    message: isProduction && statusCode === 500
+      ? 'An internal server error occurred.'
+      : err.message || 'Internal Server Error',
     ...(err.requiresOtp && { requiresOtp: true }),
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    // Stack trace only in development — never in production
+    ...(!isProduction && { stack: err.stack }),
   });
 });
 
