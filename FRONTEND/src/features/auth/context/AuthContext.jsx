@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getCurrentUser } from '../services/auth.service';
-
+//It stores the logged-in user in memory and automatically restores their session when they refresh the browser.
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {

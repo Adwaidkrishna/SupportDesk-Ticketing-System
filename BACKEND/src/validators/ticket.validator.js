@@ -155,3 +155,28 @@ export const validateGetMyTicketsInput = (req, res, next) => {
 
   next();
 };
+
+/**
+ * Validates path parameter ticketId for GET /api/v1/tickets/:ticketId
+ */
+export const validateTicketIdParam = (req, res, next) => {
+  const { ticketId } = req.params;
+
+  if (!ticketId || typeof ticketId !== 'string' || !ticketId.trim()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Ticket ID parameter is required.',
+    });
+  }
+
+  const trimmedId = ticketId.trim();
+  if (!mongoose.Types.ObjectId.isValid(trimmedId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Invalid ticket ID format.',
+    });
+  }
+
+  req.params.ticketId = trimmedId;
+  next();
+};

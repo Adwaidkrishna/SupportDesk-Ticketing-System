@@ -1,3 +1,4 @@
+//"Instead of calling fetch directly in the component, Register.jsx calls registerService({ name, email, password }). This keeps UI logic completely decoupled from HTTP logic."
 import api from '../../../services/api';
 
 /**

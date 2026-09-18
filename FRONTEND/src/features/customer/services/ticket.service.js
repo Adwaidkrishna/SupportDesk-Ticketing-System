@@ -43,8 +43,18 @@ export async function getMyTickets({ page = 1, limit = 10, status } = {}) {
   return api.get(endpoint);
 }
 
+/**
+ * Fetch details of a single ticket owned strictly by the authenticated customer.
+ * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @returns {Promise<{ success: boolean, data: { ticket: Object } }>}
+ */
+export async function getTicketById(ticketId) {
+  return api.get(`/tickets/${ticketId}`);
+}
+
 export default {
   getCategories,
   createTicket,
   getMyTickets,
+  getTicketById,
 };

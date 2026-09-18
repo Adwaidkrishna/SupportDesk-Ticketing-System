@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 
 /**
- * useAuthForm — Generic form state manager for auth forms.
+ * A Custom React Hook created to manage all form state, input changes, validation, 
+ * and submission handling for authentication pages in a single, reusable place.
  *
  * @param {Object} initialValues - Initial form field values
  * @param {Function} validate - Validation function that returns { field: errorMsg }

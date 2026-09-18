@@ -5,11 +5,12 @@ import { authorizeRoles } from '../middleware/rbac.middleware.js';
 import {
   validateCreateTicketInput,
   validateGetMyTicketsInput,
+  validateTicketIdParam,
 } from '../validators/ticket.validator.js';
 
 const router = express.Router();
 
-// GET /api/v1/tickets/my-tickets - Customer ticket listing (Scoped to req.user.userId)
+// GET /api/v1/tickets/my-tickets - Customer ticket listing (Must precede /:ticketId)
 router.get(
   '/my-tickets',
   authenticateUser,
@@ -25,6 +26,15 @@ router.post(
   authorizeRoles('customer'),
   validateCreateTicketInput,
   ticketController.createTicket
+);
+
+// GET /api/v1/tickets/:ticketId - Customer ticket details (Read-only, Customer ID Isolation)
+router.get(
+  '/:ticketId',
+  authenticateUser,
+  authorizeRoles('customer'),
+  validateTicketIdParam,
+  ticketController.getTicketDetails
 );
 
 export default router;
