@@ -180,3 +180,45 @@ export const validateTicketIdParam = (req, res, next) => {
   req.params.ticketId = trimmedId;
   next();
 };
+
+/**
+ * Validates query parameters for GET /api/v1/agent/queue
+ */
+export const validateGetAgentQueueInput = (req, res, next) => {
+  const { page, limit } = req.query;
+
+  let parsedPage = 1;
+  let parsedLimit = 10;
+
+  // 1. Validate page if provided
+  if (page !== undefined && page !== null && page !== '') {
+    const pageNum = Number(page);
+    if (!Number.isInteger(pageNum) || pageNum < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error: Page must be a positive integer >= 1.',
+      });
+    }
+    parsedPage = pageNum;
+  }
+
+  // 2. Validate limit if provided
+  if (limit !== undefined && limit !== null && limit !== '') {
+    const limitNum = Number(limit);
+    if (!Number.isInteger(limitNum) || limitNum < 1 || limitNum > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error: Limit must be an integer between 1 and 50.',
+      });
+    }
+    parsedLimit = limitNum;
+  }
+
+  req.validatedQuery = {
+    page: parsedPage,
+    limit: parsedLimit,
+  };
+
+  next();
+};
+

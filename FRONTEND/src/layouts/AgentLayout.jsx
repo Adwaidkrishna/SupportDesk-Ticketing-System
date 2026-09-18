@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../features/auth/context/AuthContext';
 import { currentAgent } from '../features/agent/agentMockData';
 import Select from '../components/common/Select';
 import styles from './AgentLayout.module.css';
@@ -12,20 +13,34 @@ import styles from './AgentLayout.module.css';
 export default function AgentLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [availability, setAvailability] = useState(currentAgent.availability);
 
   const activePath = location.pathname;
 
+  const displayName = user?.name || currentAgent.name;
+  const displayRole = user?.role
+    ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+    : currentAgent.role;
+  const displayInitials =
+    displayName
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'AG';
+
   const handleLogout = () => {
     setMoreDrawerOpen(false);
+    logout();
     navigate('/login');
   };
 
   const navItems = [
     { label: 'Dashboard', path: '/agent/dashboard', icon: 'grid' },
-    { label: 'My Queue', path: '/agent/queue', icon: 'inbox' },
+    { label: 'Available Tickets', path: '/agent/queue', icon: 'inbox' },
     { label: 'All Tickets', path: '/agent/tickets', icon: 'layers' },
     { label: 'Escalated', path: '/agent/escalated', icon: 'alert' },
     { label: 'Knowledge Base', path: '/agent/knowledge-base', icon: 'book' },
@@ -36,6 +51,7 @@ export default function AgentLayout() {
       badge: currentAgent.unreadNotificationsCount,
     },
   ];
+
 
   const secondaryNavItems = [
     { label: 'Profile', path: '/agent/profile', icon: 'user' },
@@ -192,10 +208,10 @@ export default function AgentLayout() {
 
         {/* User Footer Tile */}
         <div className={styles.userTile}>
-          <div className={styles.userAvatar}>{currentAgent.initials}</div>
+          <div className={styles.userAvatar}>{displayInitials}</div>
           <div className={styles.userInfo}>
-            <span className={styles.userName}>{currentAgent.name}</span>
-            <span className={styles.userRole}>{currentAgent.role}</span>
+            <span className={styles.userName}>{displayName}</span>
+            <span className={styles.userRole}>{displayRole}</span>
           </div>
           <button
             type="button"
@@ -301,7 +317,7 @@ export default function AgentLayout() {
               onClick={() => navigate('/agent/profile')}
               title="Profile"
             >
-              {currentAgent.initials}
+              {displayInitials}
             </div>
           </div>
         </header>
@@ -327,7 +343,7 @@ export default function AgentLayout() {
           className={`${styles.mobileNavItem} ${activePath === '/agent/queue' ? styles.active : ''}`}
         >
           {renderIcon('inbox')}
-          <span>My Queue</span>
+          <span>Available</span>
         </Link>
 
         <Link
@@ -366,12 +382,13 @@ export default function AgentLayout() {
           <div className={styles.moreDrawer} onClick={(e) => e.stopPropagation()}>
             <div className={styles.moreDrawerHeader}>
               <div className={styles.moreUserInfo}>
-                <div className={styles.moreAvatar}>{currentAgent.initials}</div>
+                <div className={styles.moreAvatar}>{displayInitials}</div>
                 <div>
-                  <h4 className={styles.moreName}>{currentAgent.name}</h4>
-                  <p className={styles.moreEmail}>{currentAgent.role} • {currentAgent.department}</p>
+                  <h4 className={styles.moreName}>{displayName}</h4>
+                  <p className={styles.moreEmail}>{displayRole}</p>
                 </div>
               </div>
+
               <button
                 type="button"
                 className={styles.closeDrawerBtn}

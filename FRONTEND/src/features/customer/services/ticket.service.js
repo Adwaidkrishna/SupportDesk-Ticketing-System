@@ -52,9 +52,20 @@ export async function getTicketById(ticketId) {
   return api.get(`/tickets/${ticketId}`);
 }
 
+/**
+ * Fetch chronological message history for a specific customer ticket.
+ * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @returns {Promise<{ success: boolean, data: Array<Object> }>}
+ */
+export async function getTicketMessages(ticketId) {
+  return api.get(`/tickets/${ticketId}/messages`);
+}
+
 export default {
   getCategories,
   createTicket,
   getMyTickets,
   getTicketById,
+  getTicketMessages,
 };
+

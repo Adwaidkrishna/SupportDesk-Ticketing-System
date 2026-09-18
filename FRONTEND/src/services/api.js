@@ -26,10 +26,11 @@ export async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
   const token = localStorage.getItem('token');
+  const hasValidToken = Boolean(token && token !== 'null' && token !== 'undefined');
 
   const headers = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(hasValidToken ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
 

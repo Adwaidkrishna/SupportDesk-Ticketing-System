@@ -28,6 +28,15 @@ router.post(
   ticketController.createTicket
 );
 
+// GET /api/v1/tickets/:ticketId/messages - Customer ticket messages (Preserves route precedence)
+router.get(
+  '/:ticketId/messages',
+  authenticateUser,
+  authorizeRoles('customer'),
+  validateTicketIdParam,
+  ticketController.getTicketMessages
+);
+
 // GET /api/v1/tickets/:ticketId - Customer ticket details (Read-only, Customer ID Isolation)
 router.get(
   '/:ticketId',

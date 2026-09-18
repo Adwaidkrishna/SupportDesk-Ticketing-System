@@ -65,6 +65,11 @@ async function runTests() {
     }
   }
 
+  let customerA = null;
+  let customerB = null;
+  let agent = null;
+  let admin = null;
+
   try {
     await connectDB();
     server = app.listen(PORT);
@@ -73,7 +78,7 @@ async function runTests() {
     const passwordHash = await hashPassword('TestPassword123!');
 
     // 1. Create Test Users: Customer A, Customer B, Agent, Admin
-    let customerA = await User.findOne({ email: 'customera@example.com' });
+    customerA = await User.findOne({ email: 'customera@example.com' });
     if (!customerA) {
       customerA = await User.create({
         name: 'Customer A',
@@ -84,7 +89,8 @@ async function runTests() {
       });
     }
 
-    let customerB = await User.findOne({ email: 'customerb@example.com' });
+
+    customerB = await User.findOne({ email: 'customerb@example.com' });
     if (!customerB) {
       customerB = await User.create({
         name: 'Customer B',
@@ -95,7 +101,7 @@ async function runTests() {
       });
     }
 
-    let agent = await User.findOne({ email: 'agent_listing@example.com' });
+    agent = await User.findOne({ email: 'agent_listing@example.com' });
     if (!agent) {
       agent = await User.create({
         name: 'Test Agent Listing',
@@ -106,7 +112,7 @@ async function runTests() {
       });
     }
 
-    let admin = await User.findOne({ email: 'admin_listing@example.com' });
+    admin = await User.findOne({ email: 'admin_listing@example.com' });
     if (!admin) {
       admin = await User.create({
         name: 'Test Admin Listing',
@@ -116,6 +122,7 @@ async function runTests() {
         isVerified: true,
       });
     }
+
 
     // 2. Create Support Category
     let category = await Category.findOne({ name: 'General Support' });
@@ -271,10 +278,19 @@ async function runTests() {
   } catch (err) {
     console.error('CRITICAL TEST FAILURE:', err);
   } finally {
+    try {
+      if (customerA && customerB) {
+        await Ticket.deleteMany({ customerId: { $in: [customerA._id, customerB._id] } });
+        await User.deleteMany({ _id: { $in: [customerA._id, customerB._id, agent?._id, admin?._id].filter(Boolean) } });
+      }
+    } catch (cleanErr) {
+      console.error('Cleanup error:', cleanErr);
+    }
     if (server) server.close();
     await mongoose.connection.close();
     process.exit(failedCount > 0 ? 1 : 0);
   }
 }
+
 
 runTests();

@@ -4,7 +4,10 @@ import { getCurrentUser } from '../services/auth.service';
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [token, setToken] = useState(() => {
+    const t = localStorage.getItem('token');
+    return t && t !== 'null' && t !== 'undefined' ? t : null;
+  });
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -14,7 +17,8 @@ export function AuthProvider({ children }) {
 
     async function restoreSession() {
       const storedToken = localStorage.getItem('token');
-      if (!storedToken) {
+      if (!storedToken || storedToken === 'null' || storedToken === 'undefined') {
+        localStorage.removeItem('token');
         if (isMounted) {
           setIsLoading(false);
         }

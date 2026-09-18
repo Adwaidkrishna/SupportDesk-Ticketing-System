@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../features/auth/context/AuthContext';
 import { currentAdmin } from '../features/admin/adminMockData';
 import styles from './AdminLayout.module.css';
 
@@ -11,12 +12,14 @@ import styles from './AdminLayout.module.css';
 export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const activePath = location.pathname;
 
   const handleLogout = () => {
     setMoreDrawerOpen(false);
+    logout();
     navigate('/login');
   };
 

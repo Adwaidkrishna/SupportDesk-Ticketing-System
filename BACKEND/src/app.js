@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import authRoutes from './routes/auth.routes.js';
 import categoryRoutes from './routes/category.routes.js';
 import ticketRoutes from './routes/ticket.routes.js';
+import agentRoutes from './routes/agent.routes.js';
+
 
 const app = express();
 
@@ -54,6 +56,8 @@ app.get('/health', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/tickets', ticketRoutes);
+app.use('/api/v1/agent', agentRoutes);
+
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((req, res, next) => {

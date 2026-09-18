@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../features/auth/context/AuthContext';
 import { currentUser } from '../features/customer/customerMockData';
 import styles from './CustomerLayout.module.css';
 
@@ -11,14 +12,30 @@ import styles from './CustomerLayout.module.css';
 export default function CustomerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
 
   const activePath = location.pathname;
 
   const handleLogout = () => {
     setMoreDrawerOpen(false);
+    logout();
     navigate('/login');
   };
+
+  const displayName = user?.name || currentUser.name;
+  const displayRole = user?.role
+    ? user.role.charAt(0).toUpperCase() + user.role.slice(1)
+    : currentUser.role;
+  const displayEmail = user?.email || currentUser.email;
+  const displayInitials = displayName
+    ? displayName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase()
+    : 'CU';
 
   const navItems = [
     { label: 'Dashboard', path: '/customer/dashboard', icon: 'grid' },
@@ -188,10 +205,10 @@ export default function CustomerLayout() {
 
         {/* User Footer Tile */}
         <div className={styles.userTile}>
-          <div className={styles.userAvatar}>{currentUser.initials}</div>
+          <div className={styles.userAvatar}>{displayInitials}</div>
           <div className={styles.userInfo}>
-            <span className={styles.userName}>{currentUser.name}</span>
-            <span className={styles.userRole}>{currentUser.role}</span>
+            <span className={styles.userName}>{displayName}</span>
+            <span className={styles.userRole}>{displayRole}</span>
           </div>
           <button
             type="button"
@@ -245,10 +262,10 @@ export default function CustomerLayout() {
               className={styles.profileBadge}
               onClick={() => navigate('/customer/profile')}
             >
-              <div className={styles.badgeAvatar}>{currentUser.initials}</div>
+              <div className={styles.badgeAvatar}>{displayInitials}</div>
               <div className={styles.badgeInfo}>
-                <span className={styles.badgeName}>{currentUser.name}</span>
-                <span className={styles.badgeRole}>{currentUser.role}</span>
+                <span className={styles.badgeName}>{displayName}</span>
+                <span className={styles.badgeRole}>{displayRole}</span>
               </div>
               <svg className={styles.chevronIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
@@ -294,7 +311,7 @@ export default function CustomerLayout() {
               onClick={() => navigate('/customer/profile')}
               title="Profile"
             >
-              {currentUser.initials}
+              {displayInitials}
             </div>
           </div>
         </header>
@@ -370,10 +387,10 @@ export default function CustomerLayout() {
           <div className={styles.moreDrawer} onClick={(e) => e.stopPropagation()}>
             <div className={styles.moreDrawerHeader}>
               <div className={styles.moreUserInfo}>
-                <div className={styles.moreAvatar}>{currentUser.initials}</div>
+                <div className={styles.moreAvatar}>{displayInitials}</div>
                 <div>
-                  <h4 className={styles.moreName}>{currentUser.name}</h4>
-                  <p className={styles.moreEmail}>{currentUser.email}</p>
+                  <h4 className={styles.moreName}>{displayName}</h4>
+                  <p className={styles.moreEmail}>{displayEmail}</p>
                 </div>
               </div>
               <button
