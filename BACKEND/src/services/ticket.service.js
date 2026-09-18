@@ -5,18 +5,16 @@ import Category from '../models/Category.js';
  * Generate sequential unique ticket number like TKT-000001
  */
 export const generateTicketNumber = async () => {
-  const lastTicket = await Ticket.findOne({}, { ticketNumber: 1 })
-    .sort({ createdAt: -1 })
-    .exec();
-
-  let nextNum = 1;
-  if (lastTicket && lastTicket.ticketNumber) {
-    const match = lastTicket.ticketNumber.match(/TKT-(\d+)/);
+  const tickets = await Ticket.find({ ticketNumber: /^TKT-\d+$/ }, { ticketNumber: 1 }).lean();
+  let maxNum = 0;
+  for (const t of tickets) {
+    const match = t.ticketNumber.match(/^TKT-(\d+)$/);
     if (match) {
-      nextNum = parseInt(match[1], 10) + 1;
+      const num = parseInt(match[1], 10);
+      if (num > maxNum) maxNum = num;
     }
   }
-  return `TKT-${String(nextNum).padStart(6, '0')}`;
+  return `TKT-${String(maxNum + 1).padStart(6, '0')}`;
 };
 
 /**
@@ -61,7 +59,68 @@ export const createTicket = async ({ customerId, subject, description, categoryI
   };
 };
 
+/**
+ * Service to list tickets created strictly by the authenticated customer.
+ */
+export const getMyTickets = async ({ customerId, page = 1, limit = 10, status }) => {
+  // Mandatory customer isolation query
+  const query = { customerId };
+
+  if (status) {
+    query.status = status;
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [rawTickets, total] = await Promise.all([
+    Ticket.find(query)
+      .populate('categoryId', 'name description')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Ticket.countDocuments(query),
+  ]);
+
+  const totalPages = Math.ceil(total / limit) || 1;
+  const hasNextPage = page < totalPages;
+  const hasPreviousPage = page > 1;
+
+  const tickets = rawTickets.map((t) => ({
+    id: t._id.toString(),
+    _id: t._id.toString(),
+    ticketNumber: t.ticketNumber,
+    subject: t.subject,
+    category: t.categoryId
+      ? {
+          id: t.categoryId._id.toString(),
+          _id: t.categoryId._id.toString(),
+          name: t.categoryId.name,
+          description: t.categoryId.description,
+        }
+      : null,
+    categoryId: t.categoryId ? t.categoryId._id.toString() : null,
+    priority: t.priority,
+    status: t.status,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+  }));
+
+  return {
+    tickets,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage,
+      hasPreviousPage,
+    },
+  };
+};
+
 export default {
   createTicket,
   generateTicketNumber,
+  getMyTickets,
 };

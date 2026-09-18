@@ -1,6 +1,6 @@
-import ticketService from '../services/ticket.service.js';
+import ticketService from '../../services/ticket.service.js';
 
-export const createTicket = async (req, res, next) => {
+const createTicket = async (req, res, next) => {
   try {
     // 1. Get authenticated customer ID from JWT context (never trust req.body.customerId)
     const customerId = req.user.userId || req.user.id;
@@ -28,6 +28,4 @@ export const createTicket = async (req, res, next) => {
   }
 };
 
-export default {
-  createTicket,
-};
+export default createTicket;

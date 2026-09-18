@@ -27,7 +27,24 @@ export async function createTicket({ subject, description, categoryId, priority 
   });
 }
 
+/**
+ * Fetch tickets submitted strictly by the authenticated customer.
+ * @param {Object} [params] - { page, limit, status }
+ * @returns {Promise<{ success: boolean, data: { tickets: Array, pagination: Object } }>}
+ */
+export async function getMyTickets({ page = 1, limit = 10, status } = {}) {
+  const queryParams = new URLSearchParams();
+  if (page) queryParams.append('page', page);
+  if (limit) queryParams.append('limit', limit);
+  if (status && status !== 'All') queryParams.append('status', status);
+
+  const queryString = queryParams.toString();
+  const endpoint = `/tickets/my-tickets${queryString ? `?${queryString}` : ''}`;
+  return api.get(endpoint);
+}
+
 export default {
   getCategories,
   createTicket,
+  getMyTickets,
 };

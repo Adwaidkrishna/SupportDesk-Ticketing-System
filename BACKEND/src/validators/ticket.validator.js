@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 export const SUPPORTED_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+export const SUPPORTED_STATUSES = ['OPEN'];
 
 export const validateCreateTicketInput = (req, res, next) => {
   const { subject, description, categoryId, priority } = req.body;
@@ -84,12 +85,72 @@ export const validateCreateTicketInput = (req, res, next) => {
     }
   }
 
-  // Attach normalized fields to req for downstream usage if helpful
   req.validatedData = {
     subject: trimmedSubject,
     description: trimmedDescription,
     categoryId: trimmedCategoryId,
     priority: priority ? priority.trim().toUpperCase() : 'MEDIUM',
+  };
+
+  next();
+};
+
+/**
+ * Validates query parameters for GET /api/v1/tickets/my-tickets
+ */
+export const validateGetMyTicketsInput = (req, res, next) => {
+  const { page, limit, status } = req.query;
+
+  let parsedPage = 1;
+  let parsedLimit = 10;
+  let parsedStatus = undefined;
+
+  // 1. Validate page if provided
+  if (page !== undefined && page !== null && page !== '') {
+    const pageNum = Number(page);
+    if (!Number.isInteger(pageNum) || pageNum < 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error: Page must be a positive integer >= 1.',
+      });
+    }
+    parsedPage = pageNum;
+  }
+
+  // 2. Validate limit if provided
+  if (limit !== undefined && limit !== null && limit !== '') {
+    const limitNum = Number(limit);
+    if (!Number.isInteger(limitNum) || limitNum < 1 || limitNum > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error: Limit must be an integer between 1 and 50.',
+      });
+    }
+    parsedLimit = limitNum;
+  }
+
+  // 3. Validate status if provided
+  if (status !== undefined && status !== null && status !== '' && status !== 'All') {
+    if (typeof status !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error: Status must be a string.',
+      });
+    }
+    const normalizedStatus = status.trim().toUpperCase();
+    if (!SUPPORTED_STATUSES.includes(normalizedStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Validation error: Invalid status filter. Supported values are [${SUPPORTED_STATUSES.join(', ')}].`,
+      });
+    }
+    parsedStatus = normalizedStatus;
+  }
+
+  req.validatedQuery = {
+    page: parsedPage,
+    limit: parsedLimit,
+    status: parsedStatus,
   };
 
   next();
