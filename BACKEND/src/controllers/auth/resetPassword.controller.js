@@ -1,4 +1,4 @@
-import authService from '../../services/auth.service.js';
+import authService from '../../services/auth/index.js';
 
 const resetPassword = async (req, res, next) => {
   try {

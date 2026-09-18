@@ -1,4 +1,4 @@
-import ticketService from '../../services/ticket.service.js';
+import ticketService from '../../services/ticket/index.js';
 
 const getTicketDetails = async (req, res, next) => {
   try {

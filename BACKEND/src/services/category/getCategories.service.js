@@ -1,4 +1,4 @@
-import Category from '../models/Category.js';
+import Category from '../../models/Category.js';
 
 const DEFAULT_CATEGORIES = [
   { name: 'Technical', description: 'Software & hardware technical issues' },
@@ -31,10 +31,4 @@ export const getActiveCategories = async () => {
  */
 export const getCategoryById = async (categoryId) => {
   return Category.findById(categoryId).lean();
-};
-
-export default {
-  getActiveCategories,
-  getCategoryById,
-  seedDefaultCategoriesIfEmpty,
 };
