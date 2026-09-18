@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+import rateLimit from 'express-rate-limit';
 
 /**
  * Rate Limit Middleware Factory
@@ -17,7 +17,7 @@ const rateLimitMessage = (action) => ({
 // ─── Login ───────────────────────────────────────────────────────────────────
 // Brute-force + credential stuffing protection
 // 10 attempts per 15-minute window per IP
-const loginLimiter = rateLimit({
+export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,   // 15 minutes
   max: 10,
   standardHeaders: true,
@@ -29,7 +29,7 @@ const loginLimiter = rateLimit({
 // ─── Registration ────────────────────────────────────────────────────────────
 // Spam / SMTP quota exhaustion protection
 // 5 registrations per hour per IP
-const registerLimiter = rateLimit({
+export const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,   // 1 hour
   max: 5,
   standardHeaders: true,
@@ -40,7 +40,7 @@ const registerLimiter = rateLimit({
 // ─── OTP Verification ────────────────────────────────────────────────────────
 // OTP brute-force protection (6-digit = 1M combos)
 // 10 attempts per 5-minute window per IP
-const verifyOtpLimiter = rateLimit({
+export const verifyOtpLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,    // 5 minutes
   max: 10,
   standardHeaders: true,
@@ -51,7 +51,7 @@ const verifyOtpLimiter = rateLimit({
 // ─── Resend OTP ──────────────────────────────────────────────────────────────
 // Prevents OTP resend abuse (supplements the per-user 60-second cooldown)
 // 5 resend requests per 10-minute window per IP
-const resendOtpLimiter = rateLimit({
+export const resendOtpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,   // 10 minutes
   max: 5,
   standardHeaders: true,
@@ -62,7 +62,7 @@ const resendOtpLimiter = rateLimit({
 // ─── Forgot Password ─────────────────────────────────────────────────────────
 // Email spam + SMTP abuse protection
 // 5 requests per 15-minute window per IP
-const forgotPasswordLimiter = rateLimit({
+export const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,   // 15 minutes
   max: 5,
   standardHeaders: true,
@@ -73,19 +73,10 @@ const forgotPasswordLimiter = rateLimit({
 // ─── Reset Password ──────────────────────────────────────────────────────────
 // Protects against token enumeration via brute-force
 // 10 attempts per 15-minute window per IP
-const resetPasswordLimiter = rateLimit({
+export const resetPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,   // 15 minutes
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: rateLimitMessage('password reset'),
 });
-
-module.exports = {
-  loginLimiter,
-  registerLimiter,
-  verifyOtpLimiter,
-  resendOtpLimiter,
-  forgotPasswordLimiter,
-  resetPasswordLimiter,
-};

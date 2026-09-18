@@ -1,12 +1,22 @@
-const register = require('./register.controller');
-const verifyOtp = require('./verifyOtp.controller');
-const resendOtp = require('./resendOtp.controller');
-const login = require('./login.controller');
-const forgotPassword = require('./forgotPassword.controller');
-const resetPassword = require('./resetPassword.controller');
-const getMe = require('./getMe.controller');
+import register from './register.controller.js';
+import verifyOtp from './verifyOtp.controller.js';
+import resendOtp from './resendOtp.controller.js';
+import login from './login.controller.js';
+import forgotPassword from './forgotPassword.controller.js';
+import resetPassword from './resetPassword.controller.js';
+import getMe from './getMe.controller.js';
 
-module.exports = {
+export {
+  register,
+  verifyOtp,
+  resendOtp,
+  login,
+  forgotPassword,
+  resetPassword,
+  getMe,
+};
+
+export default {
   register,
   verifyOtp,
   resendOtp,

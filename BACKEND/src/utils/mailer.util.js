@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
 const createTransporter = () => {
   if (process.env.SMTP_USER && process.env.SMTP_PASS && process.env.SMTP_USER !== 'mock_user') {
@@ -32,7 +32,7 @@ const createTransporter = () => {
  * C-01 FIX: OTP value is NEVER logged. Only safe metadata is logged.
  * M-06 FIX: Delivery failures are thrown so callers can handle them.
  */
-const sendOtpEmail = async (email, otpCode) => {
+export const sendOtpEmail = async (email, otpCode) => {
   const transporter = createTransporter();
   const fromEmail = process.env.FROM_EMAIL || 'noreply@supportdesk.com';
   const subject = 'SupportDesk — Verify Your Account OTP';
@@ -61,7 +61,7 @@ const sendOtpEmail = async (email, otpCode) => {
  * C-02 FIX: Reset token value is NEVER logged. Only safe metadata is logged.
  * M-06 FIX: Delivery failures are thrown so callers can handle them.
  */
-const sendPasswordResetEmail = async (email, resetToken) => {
+export const sendPasswordResetEmail = async (email, resetToken) => {
   const transporter = createTransporter();
   const fromEmail = process.env.FROM_EMAIL || 'noreply@supportdesk.com';
   const subject = 'SupportDesk — Password Reset Token';
@@ -83,9 +83,4 @@ const sendPasswordResetEmail = async (email, resetToken) => {
   });
 
   console.log(`[Mailer] Password reset email delivered successfully.`);
-};
-
-module.exports = {
-  sendOtpEmail,
-  sendPasswordResetEmail,
 };

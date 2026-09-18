@@ -1,4 +1,4 @@
-const authService = require('../../services/auth.service');
+import authService from '../../services/auth.service.js';
 
 const resetPassword = async (req, res, next) => {
   try {
@@ -12,4 +12,4 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
-module.exports = resetPassword;
+export default resetPassword;

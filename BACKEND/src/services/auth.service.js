@@ -1,11 +1,11 @@
-const crypto = require('crypto');
-const User = require('../models/User');
-const Otp = require('../models/Otp');
-const PasswordReset = require('../models/PasswordReset');
-const { hashPassword, comparePassword } = require('../utils/hash.util');
-const { generateToken } = require('../utils/jwt.util');
-const { generateOtp, generateResetToken } = require('../utils/otp.util');
-const { sendOtpEmail, sendPasswordResetEmail } = require('../utils/mailer.util');
+import crypto from 'crypto';
+import User from '../models/User.js';
+import Otp from '../models/Otp.js';
+import PasswordReset from '../models/PasswordReset.js';
+import { hashPassword, comparePassword } from '../utils/hash.util.js';
+import { generateToken } from '../utils/jwt.util.js';
+import { generateOtp, generateResetToken } from '../utils/otp.util.js';
+import { sendOtpEmail, sendPasswordResetEmail } from '../utils/mailer.util.js';
 
 // ─── Secure hashing helpers ──────────────────────────────────────────────────
 
@@ -437,7 +437,17 @@ const getCurrentUser = async (userId) => {
   };
 };
 
-module.exports = {
+export {
+  registerUser,
+  verifyOtp,
+  resendOtp,
+  loginUser,
+  forgotPassword,
+  resetPassword,
+  getCurrentUser,
+};
+
+export default {
   registerUser,
   verifyOtp,
   resendOtp,

@@ -1,44 +1,68 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
 import Select from '../../../components/common/Select';
+import { getCategories, createTicket } from '../services/ticket.service';
 import styles from './CreateTicket.module.css';
 
 /**
  * Create Ticket page component.
- * Allows customers to submit a new support request with attachments,
- * validation, loading, and success confirmation state.
+ * Allows authenticated customers to submit a new support request to backend POST /api/v1/tickets.
  */
 export default function CreateTicket() {
   const navigate = useNavigate();
 
   const [formValues, setFormValues] = useState({
     subject: '',
-    category: '',
-    priority: 'Medium',
+    categoryId: '',
+    priority: 'MEDIUM',
     description: '',
   });
 
-  const [attachments, setAttachments] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdTicket, setCreatedTicket] = useState(null);
 
-  const categories = [
-    { value: '', label: 'Select category' },
-    { value: 'Technical', label: 'Technical' },
-    { value: 'Account', label: 'Account' },
-    { value: 'Billing', label: 'Billing' },
-    { value: 'Feature Request', label: 'Feature Request' },
-    { value: 'Other', label: 'Other' },
-  ];
+  // Fetch support categories from backend API on mount
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCategoryList = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await getCategories();
+        if (isMounted && response?.data?.categories) {
+          const categoryOptions = response.data.categories.map((cat) => ({
+            value: cat.id || cat._id,
+            label: cat.name,
+            subtitle: cat.description || '',
+          }));
+          setCategories(categoryOptions);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Failed to load support categories:', err);
+          setServerError('Unable to load support categories. Please refresh or try again.');
+        }
+      } finally {
+        if (isMounted) setLoadingCategories(false);
+      }
+    };
 
-  const priorities = [
-    { value: 'Low', label: 'Low — Minor inconvenience' },
-    { value: 'Medium', label: 'Medium — Normal issue' },
-    { value: 'High', label: 'High — Significant impact' },
-    { value: 'Urgent', label: 'Urgent — System down / Critical' },
+    fetchCategoryList();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const priorityOptions = [
+    { value: 'LOW', label: 'Low', subtitle: 'Minor inconvenience', badge: 'Low', badgeColor: '#64748B' },
+    { value: 'MEDIUM', label: 'Medium', subtitle: 'Normal issue', badge: 'Medium', badgeColor: '#0A84FF' },
+    { value: 'HIGH', label: 'High', subtitle: 'Significant impact', badge: 'High', badgeColor: '#FF9F0A' },
+    { value: 'URGENT', label: 'Urgent', subtitle: 'System down / Critical', badge: 'Urgent', badgeColor: '#FF453A' },
   ];
 
   const handleChange = (e) => {
@@ -47,39 +71,28 @@ export default function CreateTicket() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
-  };
-
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files);
-    if (!files.length) return;
-
-    const newFiles = files.map((file) => ({
-      id: Math.random().toString(36).substring(2, 9),
-      name: file.name,
-      size: (file.size / 1024).toFixed(1) + ' KB',
-      type: file.type,
-    }));
-
-    setAttachments((prev) => [...prev, ...newFiles]);
-  };
-
-  const handleRemoveAttachment = (id) => {
-    setAttachments((prev) => prev.filter((item) => item.id !== id));
+    if (serverError) setServerError('');
   };
 
   const validate = () => {
     const newErrors = {};
+
     if (!formValues.subject.trim()) {
-      newErrors.subject = 'Subject is required';
+      newErrors.subject = 'Subject is required.';
+    } else if (formValues.subject.trim().length < 5) {
+      newErrors.subject = 'Subject must be at least 5 characters long.';
     }
-    if (!formValues.category) {
-      newErrors.category = 'Please select a category';
+
+    if (!formValues.categoryId) {
+      newErrors.categoryId = 'Please select a category.';
     }
+
     if (!formValues.description.trim()) {
-      newErrors.description = 'Description is required';
+      newErrors.description = 'Description is required.';
     } else if (formValues.description.trim().length < 10) {
-      newErrors.description = 'Description must be at least 10 characters long';
+      newErrors.description = 'Description must be at least 10 characters long.';
     }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -89,23 +102,31 @@ export default function CreateTicket() {
     if (!validate()) return;
 
     setIsSubmitting(true);
+    setServerError('');
 
-    // Simulate mock submission delay
-    setTimeout(() => {
-      setIsSubmitting(false);
-      const newTicketId = `#1025`;
-      setCreatedTicket({
-        id: newTicketId,
-        subject: formValues.subject,
-        category: formValues.category,
+    try {
+      const response = await createTicket({
+        subject: formValues.subject.trim(),
+        description: formValues.description.trim(),
+        categoryId: formValues.categoryId,
         priority: formValues.priority,
-        created: 'Just now',
       });
-    }, 1000);
+
+      if (response?.data?.ticket) {
+        setCreatedTicket(response.data.ticket);
+      }
+    } catch (err) {
+      setServerError(err.message || 'Failed to create ticket. Please check your inputs and try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Success Confirmation View
   if (createdTicket) {
+    const selectedCatObj = categories.find((c) => String(c.value) === String(createdTicket.categoryId));
+    const categoryName = selectedCatObj ? selectedCatObj.label : 'Support Category';
+
     return (
       <div className={styles.successContainer}>
         <div className={styles.successCard}>
@@ -116,23 +137,30 @@ export default function CreateTicket() {
           </div>
           <h2 className={styles.successTitle}>Ticket Created Successfully!</h2>
           <p className={styles.successDesc}>
-            Your support request has been logged under ID{' '}
-            <strong className={styles.ticketIdBadge}>{createdTicket.id}</strong>.
-            Our team will review it shortly.
+            Your support request has been logged under Ticket Number{' '}
+            <strong className={styles.ticketIdBadge}>{createdTicket.ticketNumber}</strong>.
           </p>
 
           <div className={styles.ticketSummaryBox}>
+            <div className={styles.summaryRow}>
+              <span className={styles.summaryLabel}>Ticket Number:</span>
+              <span className={styles.summaryVal}>{createdTicket.ticketNumber}</span>
+            </div>
             <div className={styles.summaryRow}>
               <span className={styles.summaryLabel}>Subject:</span>
               <span className={styles.summaryVal}>{createdTicket.subject}</span>
             </div>
             <div className={styles.summaryRow}>
               <span className={styles.summaryLabel}>Category:</span>
-              <span className={styles.summaryVal}>{createdTicket.category}</span>
+              <span className={styles.summaryVal}>{categoryName}</span>
             </div>
             <div className={styles.summaryRow}>
               <span className={styles.summaryLabel}>Priority:</span>
               <span className={styles.summaryVal}>{createdTicket.priority}</span>
+            </div>
+            <div className={styles.summaryRow}>
+              <span className={styles.summaryLabel}>Initial Status:</span>
+              <span className={styles.summaryVal}>{createdTicket.status}</span>
             </div>
           </div>
 
@@ -141,13 +169,10 @@ export default function CreateTicket() {
               variant="primary"
               fullWidth
               large
-              onClick={() => navigate('/customer/tickets/1025')}
+              onClick={() => navigate('/customer/dashboard')}
             >
-              View Ticket →
+              Return to Dashboard →
             </Button>
-            <Link to="/customer/dashboard" className={styles.backLink}>
-              ← Back to Dashboard
-            </Link>
           </div>
         </div>
       </div>
@@ -166,12 +191,27 @@ export default function CreateTicket() {
         </p>
       </div>
 
+      {serverError && (
+        <div style={{
+          padding: '12px 16px',
+          marginBottom: '20px',
+          borderRadius: '8px',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          color: '#ef4444',
+          fontSize: '0.9rem',
+          fontWeight: 500,
+        }}>
+          {serverError}
+        </div>
+      )}
+
       <form className={styles.formCard} onSubmit={handleSubmit} noValidate>
         {/* Subject */}
         <Input
           id="ticket-subject"
           name="subject"
-          label="Subject"
+          label="Subject *"
           placeholder="e.g. Unable to access billing dashboard"
           value={formValues.subject}
           onChange={handleChange}
@@ -191,33 +231,28 @@ export default function CreateTicket() {
           {/* Category */}
           <Select
             label="Category *"
-            options={[
-              { value: 'Technical', label: 'Technical', subtitle: 'Software & hardware issues', badge: 'Tech' },
-              { value: 'Account', label: 'Account', subtitle: 'Access & login issues', badge: 'User' },
-              { value: 'Billing', label: 'Billing', subtitle: 'Invoices & subscriptions', badge: 'Fin' },
-              { value: 'Feature Request', label: 'Feature Request', subtitle: 'New feature suggestions', badge: 'Idea' },
-              { value: 'Other', label: 'Other', subtitle: 'General inquiries', badge: 'Info' },
-            ]}
-            value={formValues.category}
+            options={categories}
+            value={formValues.categoryId}
             onChange={(val) => {
-              setFormValues((prev) => ({ ...prev, category: val }));
-              if (errors.category) setErrors((prev) => ({ ...prev, category: '' }));
+              setFormValues((prev) => ({ ...prev, categoryId: val }));
+              if (errors.categoryId) setErrors((prev) => ({ ...prev, categoryId: '' }));
+              if (serverError) setServerError('');
             }}
-            placeholder="Select category..."
-            error={errors.category}
+            placeholder={loadingCategories ? 'Loading categories...' : 'Select category...'}
+            disabled={loadingCategories || isSubmitting}
+            error={errors.categoryId}
           />
 
           {/* Priority */}
           <Select
             label="Priority"
-            options={[
-              { value: 'Low', label: 'Low', subtitle: 'Minor inconvenience', badge: 'Low', badgeColor: '#64748B' },
-              { value: 'Medium', label: 'Medium', subtitle: 'Normal issue', badge: 'Medium', badgeColor: '#0A84FF' },
-              { value: 'High', label: 'High', subtitle: 'Significant impact', badge: 'High', badgeColor: '#FF9F0A' },
-              { value: 'Urgent', label: 'Urgent', subtitle: 'System down / Critical', badge: 'Urgent', badgeColor: '#FF453A' },
-            ]}
+            options={priorityOptions}
             value={formValues.priority}
-            onChange={(val) => setFormValues((prev) => ({ ...prev, priority: val }))}
+            onChange={(val) => {
+              setFormValues((prev) => ({ ...prev, priority: val }));
+              if (serverError) setServerError('');
+            }}
+            disabled={isSubmitting}
             placeholder="Select priority..."
           />
         </div>
@@ -234,59 +269,10 @@ export default function CreateTicket() {
             placeholder="Describe your issue in detail. Include any relevant steps to reproduce..."
             value={formValues.description}
             onChange={handleChange}
+            disabled={isSubmitting}
             className={`${styles.textarea} ${errors.description ? styles.hasError : ''}`}
           />
           {errors.description && <span className={styles.errorMessage}>{errors.description}</span>}
-        </div>
-
-        {/* Attachments Section */}
-        <div className={styles.attachmentsSection}>
-          <label className={styles.label}>Attachments</label>
-          <p className={styles.attachHelp}>
-            Upload screenshots or relevant logs (PNG, JPG, PDF up to 10MB).
-          </p>
-
-          <div className={styles.uploadArea}>
-            <input
-              type="file"
-              id="file-upload"
-              multiple
-              onChange={handleFileUpload}
-              className={styles.fileInput}
-            />
-            <label htmlFor="file-upload" className={styles.uploadButton}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              <span>+ Add files</span>
-            </label>
-          </div>
-
-          {/* Uploaded File List */}
-          {attachments.length > 0 && (
-            <div className={styles.fileList}>
-              {attachments.map((file) => (
-                <div key={file.id} className={styles.fileChip}>
-                  <svg className={styles.fileIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                  <span className={styles.fileName}>{file.name}</span>
-                  <span className={styles.fileSize}>({file.size})</span>
-                  <button
-                    type="button"
-                    className={styles.removeFileBtn}
-                    onClick={() => handleRemoveAttachment(file.id)}
-                    title="Remove file"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Action Buttons */}
@@ -294,6 +280,7 @@ export default function CreateTicket() {
           <Button
             type="button"
             variant="secondary"
+            disabled={isSubmitting}
             onClick={() => navigate('/customer/dashboard')}
           >
             Cancel
@@ -303,6 +290,7 @@ export default function CreateTicket() {
             type="submit"
             variant="primary"
             loading={isSubmitting}
+            disabled={isSubmitting || loadingCategories}
           >
             Create Ticket →
           </Button>

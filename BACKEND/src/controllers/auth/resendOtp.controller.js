@@ -1,8 +1,8 @@
-const authService = require('../../services/auth.service');
+import authService from '../../services/auth.service.js';
 
 const resendOtp = async (req, res, next) => {
   try {
-    const result = await authService.resendOtp(req.body);
+    const result = await authService.resendOtp(req.body.email);
     res.status(200).json({
       success: true,
       message: result.message,
@@ -12,4 +12,4 @@ const resendOtp = async (req, res, next) => {
   }
 };
 
-module.exports = resendOtp;
+export default resendOtp;

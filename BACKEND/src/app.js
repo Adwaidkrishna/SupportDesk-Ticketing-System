@@ -1,7 +1,9 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const authRoutes = require('./routes/auth.routes');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import authRoutes from './routes/auth.routes.js';
+import categoryRoutes from './routes/category.routes.js';
+import ticketRoutes from './routes/ticket.routes.js';
 
 const app = express();
 
@@ -50,6 +52,8 @@ app.get('/health', (req, res) => {
 
 // ─── API v1 Routes ────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/categories', categoryRoutes);
+app.use('/api/v1/tickets', ticketRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((req, res, next) => {
@@ -80,4 +84,4 @@ app.use((err, req, res, next) => {
   });
 });
 
-module.exports = app;
+export default app;

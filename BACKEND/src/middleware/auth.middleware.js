@@ -1,6 +1,6 @@
-const { verifyToken } = require('../utils/jwt.util');
+import { verifyToken } from '../utils/jwt.util.js';
 
-const authenticateUser = (req, res, next) => {
+export const authenticateUser = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -22,8 +22,4 @@ const authenticateUser = (req, res, next) => {
       message: 'Authentication failed: Invalid or expired token.',
     });
   }
-};
-
-module.exports = {
-  authenticateUser,
 };
