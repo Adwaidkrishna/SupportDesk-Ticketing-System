@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import socket from '../../../socket/socket.js';
+import socket, { connectSocket } from '../../../socket/socket.js';
 import {
   currentUser,
   dashboardStats,
@@ -28,7 +28,7 @@ export default function CustomerDashboard() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    socket.connect();
+    connectSocket();
 
     const handleConnect = () => {
       console.log('🟢 Socket connected:', socket.id);
@@ -38,12 +38,19 @@ export default function CustomerDashboard() {
       console.log('🔴 Socket disconnected:', reason);
     };
 
+    const handleConnectError = (error) => {
+      console.error('🔴 Socket connection error:', error.message);
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
+    socket.on('connect_error', handleConnectError);
 
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
+      socket.off('connect_error', handleConnectError);
+
       socket.disconnect();
     };
   }, []);
