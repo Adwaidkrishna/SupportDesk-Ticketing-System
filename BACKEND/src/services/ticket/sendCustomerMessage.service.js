@@ -1,5 +1,6 @@
 import Ticket from '../../models/Ticket.js';
 import TicketMessage from '../../models/TicketMessage.js';
+import { getIO } from '../../socket/socket.js';
 
 /**
  * Service to send a message on a ticket by its customer owner.
@@ -8,6 +9,7 @@ import TicketMessage from '../../models/TicketMessage.js';
  * - Ticket exists.
  * - Authenticated customer owns the ticket (IDOR isolation; returns 404 if not).
  * - Persists message in MongoDB with senderRole = 'customer'.
+ * - Emits real-time message:new to the ticket room via Socket.IO.
  * - Returns clean serialized message with safe sender details.
  *
  * @param {string} ticketId - MongoDB ObjectId of the ticket
@@ -36,7 +38,7 @@ export const sendCustomerMessage = async (ticketId, customerId, body) => {
   // 3. Populate sender safe details
   await message.populate('senderId', 'name email role');
 
-  return {
+  const responseMessage = {
     id: message._id.toString(),
     _id: message._id.toString(),
     ticketId: message.ticketId.toString(),
@@ -53,6 +55,17 @@ export const sendCustomerMessage = async (ticketId, customerId, body) => {
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
   };
+
+  // 4. Real-time Socket.IO Broadcast to Ticket Room
+  try {
+    const io = getIO();
+    io.to(`ticket:${ticket.ticketNumber}`).emit('message:new', responseMessage);
+  } catch (socketErr) {
+    // Non-blocking in case of isolated testing environments without active Socket.IO
+    console.warn('[Socket] Real-time message broadcast skipped:', socketErr.message);
+  }
+
+  return responseMessage;
 };
 
 export default sendCustomerMessage;

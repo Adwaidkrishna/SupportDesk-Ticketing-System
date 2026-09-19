@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
+import socket, { connectSocket } from '../../../socket/socket.js';
 import {
   getAgentTicketById,
   claimTicket,
@@ -113,6 +114,63 @@ export default function AgentTicketDetails() {
     currentUserId && assignedAgentId && String(currentUserId) === String(assignedAgentId)
   );
 
+  // 1. Socket.IO: Join and leave ticket room when assigned to current agent
+  useEffect(() => {
+    if (!ticketId || !isAssignedToMe) return;
+
+    const joinRoom = () => {
+      socket.emit('join-ticket', { ticketId }, (response) => {
+        if (!response?.success) {
+          console.error('❌ Failed to join ticket room:', response?.message);
+          return;
+        }
+        console.log('🟢 Agent joined ticket room:', response.room);
+      });
+    };
+
+    const handleConnect = () => {
+      joinRoom();
+    };
+
+    connectSocket();
+
+    socket.on('connect', handleConnect);
+
+    if (socket.connected) {
+      joinRoom();
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.emit('leave-ticket', { ticketId }, () => {
+        console.log('🔵 Agent left ticket room:', ticketId);
+      });
+      socket.disconnect();
+    };
+  }, [ticketId, isAssignedToMe]);
+
+  // 2. Socket.IO: Listen for real-time incoming messages with deduplication
+  useEffect(() => {
+    const handleNewMessage = (newMessage) => {
+      setMessages((prev) => {
+        const messageId = String(newMessage.id || newMessage._id);
+        const alreadyExists = prev.some(
+          (msg) => String(msg.id || msg._id) === messageId
+        );
+        if (alreadyExists) {
+          return prev;
+        }
+        return [...prev, newMessage];
+      });
+    };
+
+    socket.on('message:new', handleNewMessage);
+
+    return () => {
+      socket.off('message:new', handleNewMessage);
+    };
+  }, []);
+
   // Fetch ticket messages when assigned to current agent
   useEffect(() => {
     let isMounted = true;
@@ -179,7 +237,16 @@ export default function AgentTicketDetails() {
       const response = await sendAgentTicketMessage(ticketId, trimmed);
       const createdMessage = response?.data;
       if (createdMessage) {
-        setMessages((prev) => [...prev, createdMessage]);
+        setMessages((prev) => {
+          const messageId = String(createdMessage.id || createdMessage._id);
+          const alreadyExists = prev.some(
+            (msg) => String(msg.id || msg._id) === messageId
+          );
+          if (alreadyExists) {
+            return prev;
+          }
+          return [...prev, createdMessage];
+        });
         setReplyText('');
       }
     } catch (err) {

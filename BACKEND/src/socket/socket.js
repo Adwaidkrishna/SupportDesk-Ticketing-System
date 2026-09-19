@@ -3,8 +3,10 @@ import mongoose from 'mongoose';
 import { verifyToken } from '../utils/jwt.util.js';
 import Ticket from '../models/Ticket.js';
 
+let io;
+
 const initializeSocket = (httpServer) => {
-  const io = new Server(httpServer, {
+  io = new Server(httpServer, {
     cors: {
       origin: process.env.CLIENT_URL || 'http://localhost:5173',
       credentials: true,
@@ -130,6 +132,14 @@ const initializeSocket = (httpServer) => {
       console.log(`🔌 Socket disconnected: ${socket.id}`);
     });
   });
+
+  return io;
+};
+
+export const getIO = () => {
+  if (!io) {
+    throw new Error('Socket.IO has not been initialized');
+  }
 
   return io;
 };

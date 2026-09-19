@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import socket, { connectSocket } from '../../../socket/socket.js';
 import { getTicketById, getTicketMessages, sendTicketMessage } from '../services/ticket.service';
 import styles from './TicketDetails.module.css';
 
@@ -7,6 +8,7 @@ import styles from './TicketDetails.module.css';
  * Ticket Details page component.
  * Displays real ticket details on the left and real conversation message history on the right.
  * Allows customer to send messages on their own ticket.
+ * Connects to Socket.IO for real-time conversation updates.
  */
 export default function TicketDetails() {
   const { ticketId } = useParams();
@@ -25,6 +27,63 @@ export default function TicketDetails() {
   const [replyText, setReplyText] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendError, setSendError] = useState('');
+
+  // 1. Socket.IO: Join and leave ticket room
+  useEffect(() => {
+    if (!ticketId) return;
+
+    const joinRoom = () => {
+      socket.emit('join-ticket', { ticketId }, (response) => {
+        if (!response?.success) {
+          console.error('❌ Failed to join ticket room:', response?.message);
+          return;
+        }
+        console.log('🟢 Joined ticket room:', response.room);
+      });
+    };
+
+    const handleConnect = () => {
+      joinRoom();
+    };
+
+    connectSocket();
+
+    socket.on('connect', handleConnect);
+
+    if (socket.connected) {
+      joinRoom();
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.emit('leave-ticket', { ticketId }, () => {
+        console.log('🔵 Left ticket room:', ticketId);
+      });
+      socket.disconnect();
+    };
+  }, [ticketId]);
+
+  // 2. Socket.IO: Listen for real-time incoming messages with deduplication
+  useEffect(() => {
+    const handleNewMessage = (newMessage) => {
+      setMessages((prev) => {
+        const messageId = String(newMessage.id || newMessage._id);
+        const alreadyExists = prev.some(
+          (msg) => String(msg.id || msg._id) === messageId
+        );
+        if (alreadyExists) {
+          return prev;
+        }
+        return [...prev, newMessage];
+      });
+    };
+
+    socket.on('message:new', handleNewMessage);
+
+    return () => {
+      socket.off('message:new', handleNewMessage);
+    };
+  }, []);
 
   // Fetch ticket details
   useEffect(() => {
@@ -135,7 +194,16 @@ export default function TicketDetails() {
       const response = await sendTicketMessage(ticketId, trimmed);
       const createdMessage = response?.data;
       if (createdMessage) {
-        setMessages((prev) => [...prev, createdMessage]);
+        setMessages((prev) => {
+          const messageId = String(createdMessage.id || createdMessage._id);
+          const alreadyExists = prev.some(
+            (msg) => String(msg.id || msg._id) === messageId
+          );
+          if (alreadyExists) {
+            return prev;
+          }
+          return [...prev, createdMessage];
+        });
         setReplyText('');
       }
     } catch (err) {

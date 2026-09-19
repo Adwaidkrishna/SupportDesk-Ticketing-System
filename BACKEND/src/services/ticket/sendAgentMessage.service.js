@@ -1,5 +1,6 @@
 import Ticket from '../../models/Ticket.js';
 import TicketMessage from '../../models/TicketMessage.js';
+import { getIO } from '../../socket/socket.js';
 
 /**
  * Service to send a reply message on an assigned ticket by the assigned agent.
@@ -8,6 +9,7 @@ import TicketMessage from '../../models/TicketMessage.js';
  * - Ticket exists (404 if not).
  * - Authenticated agent is the assigned agent for this ticket (403 if not or unassigned).
  * - Persists message in MongoDB with senderRole = 'agent'.
+ * - Emits real-time message:new to the ticket room via Socket.IO.
  * - Returns clean serialized message with safe sender details.
  *
  * @param {string} ticketId - MongoDB ObjectId of the ticket
@@ -43,7 +45,7 @@ export const sendAgentMessage = async (ticketId, agentId, body) => {
   // 4. Populate sender safe details
   await message.populate('senderId', 'name email role');
 
-  return {
+  const responseMessage = {
     id: message._id.toString(),
     _id: message._id.toString(),
     ticketId: message.ticketId.toString(),
@@ -60,6 +62,17 @@ export const sendAgentMessage = async (ticketId, agentId, body) => {
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
   };
+
+  // 5. Real-time Socket.IO Broadcast to Ticket Room
+  try {
+    const io = getIO();
+    io.to(`ticket:${ticket.ticketNumber}`).emit('message:new', responseMessage);
+  } catch (socketErr) {
+    // Non-blocking in case of isolated testing environments without active Socket.IO
+    console.warn('[Socket] Real-time message broadcast skipped:', socketErr.message);
+  }
+
+  return responseMessage;
 };
 
 export default sendAgentMessage;
