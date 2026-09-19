@@ -95,9 +95,7 @@ const initializeSocket = (httpServer) => {
         }
 
         const room = `ticket:${ticket.ticketNumber}`;
-        const idRoom = `ticket:${ticket._id.toString()}`;
         socket.join(room);
-        socket.join(idRoom);
 
         console.log(`🎟️ [Socket] User ${userId} (${userRole}) joined room: ${room}`);
 
@@ -118,13 +116,26 @@ const initializeSocket = (httpServer) => {
     });
 
     // Leave Ticket Room
-    socket.on('leave-ticket', (data, callback) => {
-      const target = typeof data === 'string' ? data : (data?.ticketId || data?.ticketNumber);
-      if (target) {
-        socket.leave(`ticket:${target}`);
-      }
-      if (typeof callback === 'function') {
-        callback({ success: true });
+    socket.on('leave-ticket', async (data, callback) => {
+      try {
+        const target = typeof data === 'string' ? data : (data?.ticketNumber || data?.ticketId);
+        if (target) {
+          socket.leave(`ticket:${target}`);
+          if (mongoose.Types.ObjectId.isValid(target)) {
+            const ticket = await Ticket.findById(target).select('ticketNumber').lean();
+            if (ticket) {
+              socket.leave(`ticket:${ticket.ticketNumber}`);
+            }
+          }
+        }
+        if (typeof callback === 'function') {
+          callback({ success: true });
+        }
+      } catch (err) {
+        console.error('Error in leave-ticket handler:', err);
+        if (typeof callback === 'function') {
+          callback({ success: false, message: 'Failed to leave ticket room' });
+        }
       }
     });
 

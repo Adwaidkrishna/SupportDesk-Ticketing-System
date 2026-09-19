@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import socket, { connectSocket } from '../../../socket/socket.js';
+import socket from '../../../socket/socket.js';
 import { getTicketById, getTicketMessages, sendTicketMessage } from '../services/ticket.service';
 import styles from './TicketDetails.module.css';
 
@@ -28,7 +28,7 @@ export default function TicketDetails() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendError, setSendError] = useState('');
 
-  // 1. Socket.IO: Join and leave ticket room
+  // 1. Socket.IO: Join and leave ticket room (Socket lifecycle managed in AuthContext)
   useEffect(() => {
     if (!ticketId) return;
 
@@ -46,8 +46,6 @@ export default function TicketDetails() {
       joinRoom();
     };
 
-    connectSocket();
-
     socket.on('connect', handleConnect);
 
     if (socket.connected) {
@@ -59,7 +57,6 @@ export default function TicketDetails() {
       socket.emit('leave-ticket', { ticketId }, () => {
         console.log('🔵 Left ticket room:', ticketId);
       });
-      socket.disconnect();
     };
   }, [ticketId]);
 

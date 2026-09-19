@@ -19,6 +19,15 @@ router.get(
   ticketController.getAgentQueue
 );
 
+// GET /api/v1/agent/my-tickets - Tickets assigned to the authenticated agent
+router.get(
+  '/my-tickets',
+  authenticateUser,
+  authorizeRoles('agent'),
+  validateGetAgentQueueInput,
+  ticketController.getAgentAssignedTickets
+);
+
 // GET /api/v1/agent/tickets/:ticketId - Read-only ticket details for agents
 router.get(
   '/tickets/:ticketId',

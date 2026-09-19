@@ -41,6 +41,7 @@ export default function AgentLayout() {
   const navItems = [
     { label: 'Dashboard', path: '/agent/dashboard', icon: 'grid' },
     { label: 'Available Tickets', path: '/agent/queue', icon: 'inbox' },
+    { label: 'My Assigned Tickets', path: '/agent/my-tickets', icon: 'assigned' },
     { label: 'All Tickets', path: '/agent/tickets', icon: 'layers' },
     { label: 'Escalated', path: '/agent/escalated', icon: 'alert' },
     { label: 'Knowledge Base', path: '/agent/knowledge-base', icon: 'book' },
@@ -74,6 +75,13 @@ export default function AgentLayout() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
             <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+          </svg>
+        );
+      case 'assigned':
+        return (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
           </svg>
         );
       case 'layers':
@@ -344,6 +352,14 @@ export default function AgentLayout() {
         >
           {renderIcon('inbox')}
           <span>Available</span>
+        </Link>
+
+        <Link
+          to="/agent/my-tickets"
+          className={`${styles.mobileNavItem} ${activePath === '/agent/my-tickets' ? styles.active : ''}`}
+        >
+          {renderIcon('assigned')}
+          <span>Assigned</span>
         </Link>
 
         <Link

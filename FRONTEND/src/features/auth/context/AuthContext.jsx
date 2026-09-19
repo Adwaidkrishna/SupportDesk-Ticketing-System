@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getCurrentUser } from '../services/auth.service';
+import { connectSocket, disconnectSocket } from '../../../socket/socket.js';
 //It stores the logged-in user in memory and automatically restores their session when they refresh the browser.
 export const AuthContext = createContext(null);
 
@@ -19,6 +20,7 @@ export function AuthProvider({ children }) {
       const storedToken = localStorage.getItem('token');
       if (!storedToken || storedToken === 'null' || storedToken === 'undefined') {
         localStorage.removeItem('token');
+        disconnectSocket();
         if (isMounted) {
           setIsLoading(false);
         }
@@ -30,9 +32,12 @@ export function AuthProvider({ children }) {
         if (isMounted && response?.success && response?.user) {
           setUser(response.user);
           setToken(storedToken);
+          // Connect socket only after JWT and session are verified
+          connectSocket();
         } else {
           // Response was not successful
           localStorage.removeItem('token');
+          disconnectSocket();
           if (isMounted) {
             setToken(null);
             setUser(null);
@@ -42,6 +47,7 @@ export function AuthProvider({ children }) {
         // Token expired or invalid
         console.warn('Session restoration failed:', err.message);
         localStorage.removeItem('token');
+        disconnectSocket();
         if (isMounted) {
           setToken(null);
           setUser(null);
@@ -62,19 +68,21 @@ export function AuthProvider({ children }) {
 
   /**
    * Handle user login.
-   * Stores the JWT token and user profile in application state.
+   * Stores the JWT token and user profile in application state, then connects socket.
    */
   const handleLogin = useCallback((newToken, newUser) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
     setUser(newUser);
+    connectSocket();
   }, []);
 
   /**
    * Handle user logout.
-   * Clears state and localStorage.
+   * Disconnects Socket.IO connection and clears state and localStorage.
    */
   const handleLogout = useCallback(() => {
+    disconnectSocket();
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);

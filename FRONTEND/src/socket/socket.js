@@ -8,12 +8,26 @@ const socket = io(SOCKET_URL, {
 
 export const connectSocket = () => {
   const token = localStorage.getItem('token');
+  if (!token || token === 'null' || token === 'undefined') {
+    return;
+  }
+
+  // Idempotency guard: prevent duplicate socket connections
+  if (socket.connected || socket.active) {
+    return;
+  }
 
   socket.auth = {
     token,
   };
 
   socket.connect();
+};
+
+export const disconnectSocket = () => {
+  if (socket.connected || socket.active) {
+    socket.disconnect();
+  }
 };
 
 export default socket;

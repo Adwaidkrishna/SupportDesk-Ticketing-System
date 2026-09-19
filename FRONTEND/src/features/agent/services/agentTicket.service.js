@@ -69,11 +69,28 @@ export async function sendAgentTicketMessage(ticketId, body) {
   return api.post(`/agent/tickets/${ticketId}/messages`, { body });
 }
 
+/**
+ * Fetch tickets assigned to the authenticated agent.
+ * @param {Object} [params] - { page, limit, status }
+ * @returns {Promise<{ success: boolean, data: { tickets: Array, pagination: Object } }>}
+ */
+export async function getAgentAssignedTickets({ page = 1, limit = 10, status } = {}) {
+  const queryParams = new URLSearchParams();
+  if (page) queryParams.append('page', page);
+  if (limit) queryParams.append('limit', limit);
+  if (status) queryParams.append('status', status);
+
+  const queryString = queryParams.toString();
+  const endpoint = `/agent/my-tickets${queryString ? `?${queryString}` : ''}`;
+  return api.get(endpoint);
+}
+
 export default {
   getAgentQueue,
   getAgentTicketById,
   claimTicket,
   getAgentTicketMessages,
   sendAgentTicketMessage,
+  getAgentAssignedTickets,
 };
 

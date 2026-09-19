@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
-import socket, { connectSocket } from '../../../socket/socket.js';
+import socket from '../../../socket/socket.js';
 import {
   getAgentTicketById,
   claimTicket,
@@ -114,7 +114,7 @@ export default function AgentTicketDetails() {
     currentUserId && assignedAgentId && String(currentUserId) === String(assignedAgentId)
   );
 
-  // 1. Socket.IO: Join and leave ticket room when assigned to current agent
+  // 1. Socket.IO: Join and leave ticket room when assigned to current agent (Socket lifecycle managed in AuthContext)
   useEffect(() => {
     if (!ticketId || !isAssignedToMe) return;
 
@@ -132,8 +132,6 @@ export default function AgentTicketDetails() {
       joinRoom();
     };
 
-    connectSocket();
-
     socket.on('connect', handleConnect);
 
     if (socket.connected) {
@@ -145,7 +143,6 @@ export default function AgentTicketDetails() {
       socket.emit('leave-ticket', { ticketId }, () => {
         console.log('🔵 Agent left ticket room:', ticketId);
       });
-      socket.disconnect();
     };
   }, [ticketId, isAssignedToMe]);
 

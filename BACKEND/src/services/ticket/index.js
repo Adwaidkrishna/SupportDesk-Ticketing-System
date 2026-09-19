@@ -8,6 +8,7 @@ import { claimTicket } from './claimTicket.service.js';
 import { sendCustomerMessage } from './sendCustomerMessage.service.js';
 import { sendAgentMessage } from './sendAgentMessage.service.js';
 import { getAgentTicketMessages } from './getAgentTicketMessages.service.js';
+import { getAgentAssignedTickets } from './getAgentAssignedTickets.service.js';
 
 export {
   createTicket,
@@ -21,6 +22,7 @@ export {
   sendCustomerMessage,
   sendAgentMessage,
   getAgentTicketMessages,
+  getAgentAssignedTickets,
 };
 
 export default {
@@ -35,6 +37,7 @@ export default {
   sendCustomerMessage,
   sendAgentMessage,
   getAgentTicketMessages,
+  getAgentAssignedTickets,
 };
 
 

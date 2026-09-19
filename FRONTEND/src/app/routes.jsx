@@ -20,6 +20,7 @@ import CustomerProfile from '../features/customer/pages/CustomerProfile';
 import AgentLayout from '../layouts/AgentLayout';
 import AgentDashboard from '../features/agent/pages/AgentDashboard';
 import MyQueue from '../features/agent/pages/MyQueue';
+import MyAssignedTickets from '../features/agent/pages/MyAssignedTickets';
 import AllTickets from '../features/agent/pages/AllTickets';
 import EscalatedTickets from '../features/agent/pages/EscalatedTickets';
 import AgentTicketDetails from '../features/agent/pages/AgentTicketDetails';
@@ -85,6 +86,7 @@ export default function AppRoutes() {
         <Route element={<AgentLayout />}>
           <Route path="/agent/dashboard" element={<AgentDashboard />} />
           <Route path="/agent/queue" element={<MyQueue />} />
+          <Route path="/agent/my-tickets" element={<MyAssignedTickets />} />
           <Route path="/agent/tickets" element={<AllTickets />} />
           <Route path="/agent/escalated" element={<EscalatedTickets />} />
           <Route path="/agent/tickets/:ticketId" element={<AgentTicketDetails />} />
