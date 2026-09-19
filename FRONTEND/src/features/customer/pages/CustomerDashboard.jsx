@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import socket from '../../../socket/socket.js';
 import {
   currentUser,
   dashboardStats,
@@ -24,6 +26,27 @@ import styles from './CustomerDashboard.module.css';
  */
 export default function CustomerDashboard() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    socket.connect();
+
+    const handleConnect = () => {
+      console.log('🟢 Socket connected:', socket.id);
+    };
+
+    const handleDisconnect = (reason) => {
+      console.log('🔴 Socket disconnected:', reason);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.disconnect();
+    };
+  }, []);
 
   const handleCreateTicket = () => {
     navigate('/customer/create-ticket');
