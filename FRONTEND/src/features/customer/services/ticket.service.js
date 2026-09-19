@@ -61,11 +61,23 @@ export async function getTicketMessages(ticketId) {
   return api.get(`/tickets/${ticketId}/messages`);
 }
 
+/**
+ * Send a message on a ticket owned by the authenticated customer.
+ * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @param {string} body - Message text content
+ * @returns {Promise<{ success: boolean, message: string, data: Object }>}
+ */
+export async function sendTicketMessage(ticketId, body) {
+  return api.post(`/tickets/${ticketId}/messages`, { body });
+}
+
 export default {
   getCategories,
   createTicket,
   getMyTickets,
   getTicketById,
   getTicketMessages,
+  sendTicketMessage,
 };
+
 

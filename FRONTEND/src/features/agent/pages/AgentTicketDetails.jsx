@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getAgentTicketById, claimTicket } from '../services/agentTicket.service';
+import { useAuth } from '../../auth/context/AuthContext';
+import {
+  getAgentTicketById,
+  claimTicket,
+  getAgentTicketMessages,
+  sendAgentTicketMessage,
+} from '../services/agentTicket.service';
 import styles from './AgentTicketDetails.module.css';
 import CallConfirmationModal from '../../video-call/components/CallConfirmationModal';
 
@@ -8,12 +14,13 @@ import CallConfirmationModal from '../../video-call/components/CallConfirmationM
  * Agent Ticket Details Page.
  * Uses the exact same clean two-column layout as the Customer Ticket Details:
  * Left column: Ticket Description & Ticket Information.
- * Right column: Conversation History / Stage Placeholder.
- * Supports claiming OPEN unassigned tickets.
+ * Right column: Conversation History & Reply Composer.
+ * Supports claiming OPEN unassigned tickets and replying when assigned.
  */
 export default function AgentTicketDetails() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Ticket Details state
   const [ticket, setTicket] = useState(null);
@@ -25,6 +32,14 @@ export default function AgentTicketDetails() {
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+
+  // Conversation state
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [messagesError, setMessagesError] = useState('');
+  const [replyText, setReplyText] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [sendError, setSendError] = useState('');
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -89,6 +104,92 @@ export default function AgentTicketDetails() {
 
   const canClaim = ticket?.status === 'OPEN' && !ticket?.assignedTo;
 
+  const currentUserId = user?.id || user?._id;
+  const assignedAgentId =
+    ticket?.assignedTo?.id ||
+    ticket?.assignedTo?._id ||
+    (typeof ticket?.assignedTo === 'string' ? ticket.assignedTo : null);
+  const isAssignedToMe = Boolean(
+    currentUserId && assignedAgentId && String(currentUserId) === String(assignedAgentId)
+  );
+
+  // Fetch ticket messages when assigned to current agent
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchMessages() {
+      if (!ticketId || !isAssignedToMe) {
+        if (isMounted) {
+          setMessages([]);
+          setLoadingMessages(false);
+        }
+        return;
+      }
+
+      try {
+        setLoadingMessages(true);
+        setMessagesError('');
+        const response = await getAgentTicketMessages(ticketId);
+        if (isMounted && response?.data) {
+          setMessages(Array.isArray(response.data) ? response.data : []);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Failed to fetch agent ticket messages:', err);
+          setMessagesError(err.message || 'Unable to load conversation.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingMessages(false);
+        }
+      }
+    }
+
+    fetchMessages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [ticketId, isAssignedToMe]);
+
+  const handleRetryMessages = async () => {
+    if (!ticketId || !isAssignedToMe) return;
+    try {
+      setLoadingMessages(true);
+      setMessagesError('');
+      const response = await getAgentTicketMessages(ticketId);
+      if (response?.data) {
+        setMessages(Array.isArray(response.data) ? response.data : []);
+      }
+    } catch (err) {
+      setMessagesError(err.message || 'Unable to load conversation.');
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    const trimmed = replyText.trim();
+    if (!trimmed || sendingMessage || !isAssignedToMe) return;
+
+    try {
+      setSendingMessage(true);
+      setSendError('');
+      const response = await sendAgentTicketMessage(ticketId, trimmed);
+      const createdMessage = response?.data;
+      if (createdMessage) {
+        setMessages((prev) => [...prev, createdMessage]);
+        setReplyText('');
+      }
+    } catch (err) {
+      console.error('Failed to send agent message:', err);
+      setSendError(err.message || 'Failed to send message. Please try again.');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   const handleClaimTicket = async () => {
     if (!ticketId || claiming) return;
 
@@ -110,6 +211,52 @@ export default function AgentTicketDetails() {
     } finally {
       setClaiming(false);
     }
+  };
+
+  const getSenderInitials = (msg) => {
+    if (msg.sender?.name) {
+      return msg.sender.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+    }
+    const role = (msg.senderRole || '').toLowerCase();
+    if (role === 'customer') return 'CU';
+    if (role === 'agent') return 'SA';
+    if (role === 'admin') return 'AD';
+    return 'U';
+  };
+
+  const getSenderDisplayName = (msg) => {
+    if (msg.sender?.name) return msg.sender.name;
+    const role = (msg.senderRole || '').toLowerCase();
+    if (role === 'customer') return 'Customer';
+    if (role === 'agent') return 'Support Agent';
+    if (role === 'admin') return 'Administrator';
+    return 'User';
+  };
+
+  const getRoleLabel = (senderRole) => {
+    const role = (senderRole || '').toLowerCase();
+    if (role === 'agent') return 'Support Agent';
+    if (role === 'admin') return 'Admin';
+    return 'Customer';
+  };
+
+  const getRoleBadgeClass = (senderRole) => {
+    const role = (senderRole || '').toLowerCase();
+    if (role === 'agent') return styles.agentTag;
+    if (role === 'admin') return styles.adminTag;
+    return styles.customerTag;
+  };
+
+  const getMessageItemClass = (senderRole) => {
+    const role = (senderRole || '').toLowerCase();
+    if (role === 'agent') return `${styles.messageItem} ${styles.agentMsg}`;
+    if (role === 'admin') return `${styles.messageItem} ${styles.adminMsg}`;
+    return `${styles.messageItem} ${styles.customerMsg}`;
   };
 
   const formatDate = (isoString) => {
@@ -369,31 +516,131 @@ export default function AgentTicketDetails() {
           </div>
         </div>
 
-        {/* Right Column: Conversation Card (Stage Placeholder) */}
+        {/* Right Column: Conversation Card */}
         <div className={styles.rightCol}>
           <div className={styles.conversationCard}>
             <div className={styles.conversationHeader}>
               <h3 className={styles.conversationTitle}>Conversation</h3>
               <span className={styles.messageCountBadge}>
-                Stage 1: Read-Only
+                {!isAssignedToMe
+                  ? 'Unassigned'
+                  : loadingMessages
+                  ? 'Loading...'
+                  : `${messages.length} ${messages.length === 1 ? 'message' : 'messages'}`}
               </span>
             </div>
 
             <div className={styles.conversationBody}>
-              <div className={styles.messagesEmptyState}>
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  className={styles.emptyIcon}
-                >
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                <h4>No messages yet</h4>
-                <p>Messaging will be available in the next stage.</p>
-              </div>
+              {!isAssignedToMe ? (
+                <div className={styles.messagesEmptyState}>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className={styles.emptyIcon}
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <h4>
+                    {!ticket.assignedTo
+                      ? 'Ticket is Unassigned'
+                      : 'Assigned to Another Agent'}
+                  </h4>
+                  <p>
+                    {!ticket.assignedTo
+                      ? 'Claim this ticket above to view conversation and start replying.'
+                      : 'Only the assigned agent can view and reply to this ticket.'}
+                  </p>
+                </div>
+              ) : loadingMessages ? (
+                <div className={styles.messagesLoadingState}>
+                  <div className={styles.spinner} />
+                  <span>Loading conversation...</span>
+                </div>
+              ) : messagesError ? (
+                <div className={styles.messagesErrorState}>
+                  <p>{messagesError}</p>
+                  <button
+                    type="button"
+                    className={styles.retryBtn}
+                    onClick={handleRetryMessages}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className={styles.messagesEmptyState}>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className={styles.emptyIcon}
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <h4>No messages yet</h4>
+                  <p>There are no messages on this ticket yet. Send a reply below.</p>
+                </div>
+              ) : (
+                <div className={styles.messageList}>
+                  {messages.map((msg) => (
+                    <div key={msg.id || msg._id} className={getMessageItemClass(msg.senderRole)}>
+                      <div className={styles.avatar}>
+                        {getSenderInitials(msg)}
+                      </div>
+                      <div className={styles.msgBody}>
+                        <div className={styles.msgMeta}>
+                          <span className={styles.senderName}>
+                            {getSenderDisplayName(msg)}
+                          </span>
+                          <span className={getRoleBadgeClass(msg.senderRole)}>
+                            {getRoleLabel(msg.senderRole)}
+                          </span>
+                          <span className={styles.timestamp}>
+                            {formatDate(msg.createdAt)}
+                          </span>
+                        </div>
+                        <div className={styles.msgBubble}>
+                          <div className={styles.msgText}>{msg.body}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Message Composer (Only when assigned to current agent) */}
+            {isAssignedToMe && (
+              <div className={styles.composerCard}>
+                {sendError && (
+                  <div className={styles.composerError} role="alert">
+                    <span>⚠️</span> {sendError}
+                  </div>
+                )}
+                <form onSubmit={handleSendMessage} className={styles.composerForm}>
+                  <textarea
+                    className={styles.composerTextarea}
+                    placeholder="Type your reply to the customer..."
+                    rows={3}
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    disabled={sendingMessage}
+                  />
+                  <div className={styles.composerActions}>
+                    <button
+                      type="submit"
+                      className={styles.sendBtn}
+                      disabled={sendingMessage || !replyText.trim()}
+                    >
+                      {sendingMessage ? 'Sending...' : 'Send Reply'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       </div>

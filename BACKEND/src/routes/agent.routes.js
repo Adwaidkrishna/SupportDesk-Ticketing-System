@@ -5,6 +5,7 @@ import { authorizeRoles } from '../middleware/rbac.middleware.js';
 import {
   validateGetAgentQueueInput,
   validateTicketIdParam,
+  validateMessageInput,
 } from '../validators/ticket.validator.js';
 
 const router = express.Router();
@@ -36,6 +37,26 @@ router.post(
   ticketController.claimTicket
 );
 
+// GET /api/v1/agent/tickets/:ticketId/messages - Retrieve conversation messages for assigned agent
+router.get(
+  '/tickets/:ticketId/messages',
+  authenticateUser,
+  authorizeRoles('agent'),
+  validateTicketIdParam,
+  ticketController.getAgentTicketMessages
+);
+
+// POST /api/v1/agent/tickets/:ticketId/messages - Send agent reply message on assigned ticket
+router.post(
+  '/tickets/:ticketId/messages',
+  authenticateUser,
+  authorizeRoles('agent'),
+  validateTicketIdParam,
+  validateMessageInput,
+  ticketController.sendAgentMessage
+);
+
 export default router;
+
 
 

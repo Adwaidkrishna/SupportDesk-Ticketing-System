@@ -5,6 +5,9 @@ import { getTicketMessages } from './getTicketMessages.service.js';
 import { getAgentQueue } from './getAgentQueue.service.js';
 import { getAgentTicketDetails } from './getAgentTicketDetails.service.js';
 import { claimTicket } from './claimTicket.service.js';
+import { sendCustomerMessage } from './sendCustomerMessage.service.js';
+import { sendAgentMessage } from './sendAgentMessage.service.js';
+import { getAgentTicketMessages } from './getAgentTicketMessages.service.js';
 
 export {
   createTicket,
@@ -15,6 +18,9 @@ export {
   getAgentQueue,
   getAgentTicketDetails,
   claimTicket,
+  sendCustomerMessage,
+  sendAgentMessage,
+  getAgentTicketMessages,
 };
 
 export default {
@@ -26,7 +32,11 @@ export default {
   getAgentQueue,
   getAgentTicketDetails,
   claimTicket,
+  sendCustomerMessage,
+  sendAgentMessage,
+  getAgentTicketMessages,
 };
+
 
 
 

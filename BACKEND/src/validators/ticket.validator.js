@@ -223,3 +223,36 @@ export const validateGetAgentQueueInput = (req, res, next) => {
   next();
 };
 
+/**
+ * Validates message body for POST /tickets/:ticketId/messages and POST /agent/tickets/:ticketId/messages
+ */
+export const validateMessageInput = (req, res, next) => {
+  const { body } = req.body || {};
+
+  if (body === undefined || body === null || typeof body !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Message body is required and must be a string.',
+    });
+  }
+
+  const trimmedBody = body.trim();
+  if (trimmedBody.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Message body cannot be empty or whitespace only.',
+    });
+  }
+
+  if (trimmedBody.length > 5000) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Message body cannot exceed 5000 characters.',
+    });
+  }
+
+  req.validatedBody = { body: trimmedBody };
+  next();
+};
+
+

@@ -6,6 +6,7 @@ import {
   validateCreateTicketInput,
   validateGetMyTicketsInput,
   validateTicketIdParam,
+  validateMessageInput,
 } from '../validators/ticket.validator.js';
 
 const router = express.Router();
@@ -37,6 +38,16 @@ router.get(
   ticketController.getTicketMessages
 );
 
+// POST /api/v1/tickets/:ticketId/messages - Customer send ticket message
+router.post(
+  '/:ticketId/messages',
+  authenticateUser,
+  authorizeRoles('customer'),
+  validateTicketIdParam,
+  validateMessageInput,
+  ticketController.sendCustomerMessage
+);
+
 // GET /api/v1/tickets/:ticketId - Customer ticket details (Read-only, Customer ID Isolation)
 router.get(
   '/:ticketId',
@@ -45,5 +56,6 @@ router.get(
   validateTicketIdParam,
   ticketController.getTicketDetails
 );
+
 
 export default router;

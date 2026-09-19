@@ -44,8 +44,36 @@ export async function claimTicket(ticketId) {
   return api.post(`/agent/tickets/${ticketId}/claim`);
 }
 
+/**
+ * Fetch chronological message history for an assigned ticket.
+ * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @returns {Promise<{ success: boolean, data: Array<Object> }>}
+ */
+export async function getAgentTicketMessages(ticketId) {
+  if (!ticketId) {
+    throw new Error('Ticket ID parameter is required.');
+  }
+  return api.get(`/agent/tickets/${ticketId}/messages`);
+}
+
+/**
+ * Send an agent reply message on an assigned ticket.
+ * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @param {string} body - Reply message text content
+ * @returns {Promise<{ success: boolean, message: string, data: Object }>}
+ */
+export async function sendAgentTicketMessage(ticketId, body) {
+  if (!ticketId) {
+    throw new Error('Ticket ID parameter is required.');
+  }
+  return api.post(`/agent/tickets/${ticketId}/messages`, { body });
+}
+
 export default {
   getAgentQueue,
   getAgentTicketById,
   claimTicket,
+  getAgentTicketMessages,
+  sendAgentTicketMessage,
 };
+

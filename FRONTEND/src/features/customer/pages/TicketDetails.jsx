@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getTicketById, getTicketMessages } from '../services/ticket.service';
+import { getTicketById, getTicketMessages, sendTicketMessage } from '../services/ticket.service';
 import styles from './TicketDetails.module.css';
 
 /**
  * Ticket Details page component.
  * Displays real ticket details on the left and real conversation message history on the right.
- * Strictly read-only; no message sending or composer.
+ * Allows customer to send messages on their own ticket.
  */
 export default function TicketDetails() {
   const { ticketId } = useParams();
@@ -20,6 +20,11 @@ export default function TicketDetails() {
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [messagesError, setMessagesError] = useState('');
+
+  // Message Composer state
+  const [replyText, setReplyText] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [sendError, setSendError] = useState('');
 
   // Fetch ticket details
   useEffect(() => {
@@ -116,6 +121,28 @@ export default function TicketDetails() {
       setMessagesError(err.message || 'Unable to load conversation.');
     } finally {
       setLoadingMessages(false);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    const trimmed = replyText.trim();
+    if (!trimmed || sendingMessage) return;
+
+    try {
+      setSendingMessage(true);
+      setSendError('');
+      const response = await sendTicketMessage(ticketId, trimmed);
+      const createdMessage = response?.data;
+      if (createdMessage) {
+        setMessages((prev) => [...prev, createdMessage]);
+        setReplyText('');
+      }
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      setSendError(err.message || 'Failed to send message. Please try again.');
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -388,6 +415,34 @@ export default function TicketDetails() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Message Composer */}
+            <div className={styles.composerCard}>
+              {sendError && (
+                <div className={styles.composerError} role="alert">
+                  <span>⚠️</span> {sendError}
+                </div>
+              )}
+              <form onSubmit={handleSendMessage} className={styles.composerForm}>
+                <textarea
+                  className={styles.composerTextarea}
+                  placeholder="Type your message..."
+                  rows={3}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  disabled={sendingMessage}
+                />
+                <div className={styles.composerActions}>
+                  <button
+                    type="submit"
+                    className={styles.sendBtn}
+                    disabled={sendingMessage || !replyText.trim()}
+                  >
+                    {sendingMessage ? 'Sending...' : 'Send Message'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

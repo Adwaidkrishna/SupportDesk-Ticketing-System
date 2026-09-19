@@ -5,6 +5,9 @@ import getTicketMessages from './getTicketMessages.controller.js';
 import getAgentQueue from './getAgentQueue.controller.js';
 import getAgentTicketDetails from './getAgentTicketDetails.controller.js';
 import claimTicket from './claimTicket.controller.js';
+import sendCustomerMessage from './sendCustomerMessage.controller.js';
+import sendAgentMessage from './sendAgentMessage.controller.js';
+import getAgentTicketMessages from './getAgentTicketMessages.controller.js';
 
 export {
   createTicket,
@@ -14,6 +17,9 @@ export {
   getAgentQueue,
   getAgentTicketDetails,
   claimTicket,
+  sendCustomerMessage,
+  sendAgentMessage,
+  getAgentTicketMessages,
 };
 
 export default {
@@ -24,7 +30,11 @@ export default {
   getAgentQueue,
   getAgentTicketDetails,
   claimTicket,
+  sendCustomerMessage,
+  sendAgentMessage,
+  getAgentTicketMessages,
 };
+
 
 
 
