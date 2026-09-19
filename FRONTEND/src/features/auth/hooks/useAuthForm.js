@@ -107,7 +107,10 @@ export default function useAuthForm(initialValues, validate) {
   /** Set a single value programmatically */
   const setValue = useCallback((name, value) => {
     setValues((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: '' }));
+    setServerError('');
   }, []);
+
 
   return {
     values,

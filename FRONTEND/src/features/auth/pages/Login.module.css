@@ -4,4 +4,80 @@
 
 .page {
   animation: fadeIn 0.4s ease both;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* Quick Login (Development Only) */
+.quickLoginBox {
+  background: rgba(255, 159, 10, 0.06);
+  border: 1px dashed rgba(255, 159, 10, 0.35);
+  border-radius: var(--radius-md, 8px);
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.quickLoginHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quickLoginLabel {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #FF9F0A;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.quickLoginBadge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  background: rgba(255, 159, 10, 0.18);
+  color: #FFB340;
+  border: 1px solid rgba(255, 159, 10, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+.quickLoginHelper {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary, #8e8e93);
+  margin: 0;
+}
+
+.quickLoginSelect {
+  margin-top: 0.25rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: rgba(18, 18, 24, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md, 8px);
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quickLoginSelect:hover {
+  border-color: rgba(255, 159, 10, 0.5);
+}
+
+.quickLoginSelect:focus {
+  border-color: #FF9F0A;
+  box-shadow: 0 0 0 2px rgba(255, 159, 10, 0.2);
+}
+
+.quickLoginSelect option {
+  background: #1c1d24;
+  color: #ffffff;
+  padding: 8px;
 }

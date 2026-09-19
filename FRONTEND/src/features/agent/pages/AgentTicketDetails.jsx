@@ -1,30 +1,160 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { sampleTicketDetails, currentAgent } from '../agentMockData';
-import Select from '../../../components/common/Select';
+import { getAgentTicketById, claimTicket } from '../services/agentTicket.service';
 import styles from './AgentTicketDetails.module.css';
-
 import CallConfirmationModal from '../../video-call/components/CallConfirmationModal';
 
+/**
+ * Agent Ticket Details Page.
+ * Uses the exact same clean two-column layout as the Customer Ticket Details:
+ * Left column: Ticket Description & Ticket Information.
+ * Right column: Conversation History / Stage Placeholder.
+ * Supports claiming OPEN unassigned tickets.
+ */
 export default function AgentTicketDetails() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
 
-  // Active ticket state with local mutations for agent actions
-  const [ticket, setTicket] = useState({
-    ...sampleTicketDetails,
-    id: ticketId ? `#${ticketId}` : sampleTicketDetails.id,
-  });
-
-  const [customerReplyText, setCustomerReplyText] = useState('');
-  const [internalNoteText, setInternalNoteText] = useState('');
-  const [activeTab, setActiveTab] = useState('reply'); // 'reply' | 'internal_note'
-  const [toastMessage, setToastMessage] = useState('');
+  // Ticket Details state
+  const [ticket, setTicket] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
+
+  // Claim action state
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
 
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 4000);
+    setTimeout(() => setToastMessage(''), 5000);
+  };
+
+  // Fetch ticket details on mount or ID change
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchTicket() {
+      if (!ticketId) {
+        if (isMounted) {
+          setError({ status: 400, message: 'Ticket ID is required.' });
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await getAgentTicketById(ticketId);
+
+        if (isMounted) {
+          const ticketData = response?.data?.ticket || response?.data;
+          if (ticketData) {
+            setTicket(ticketData);
+          } else {
+            setError({ status: 404, message: 'Ticket not found.' });
+          }
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Failed to load agent ticket details:', err);
+          const status = err.status || err.statusCode || 500;
+          let message = err.message || 'Failed to load ticket details.';
+
+          if (status === 401) {
+            message = 'Authentication required. Please log in again.';
+          } else if (status === 403) {
+            message = 'Access denied. You are not authorized to view this ticket.';
+          } else if (status === 404) {
+            message = 'Ticket not found. The requested ticket does not exist.';
+          }
+
+          setError({ status, message });
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchTicket();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [ticketId]);
+
+  const canClaim = ticket?.status === 'OPEN' && !ticket?.assignedTo;
+
+  const handleClaimTicket = async () => {
+    if (!ticketId || claiming) return;
+
+    try {
+      setClaiming(true);
+      setClaimError('');
+      const response = await claimTicket(ticketId);
+
+      const updatedData = response?.data?.ticket || response?.data;
+      if (updatedData) {
+        setTicket(updatedData);
+        showToast('Ticket claimed successfully! Status updated to IN_PROGRESS.');
+      }
+    } catch (err) {
+      console.error('Failed to claim ticket:', err);
+      const msg = err?.message || 'Failed to claim ticket. Please try again.';
+      setClaimError(msg);
+      setTimeout(() => setClaimError(''), 6000);
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const formatDate = (isoString) => {
+    if (!isoString) return 'N/A';
+    const date = new Date(isoString);
+    return date.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getStatusClass = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'OPEN':
+        return styles.statusInfo;
+      case 'IN_PROGRESS':
+      case 'IN PROGRESS':
+        return styles.statusWarning;
+      case 'WAITING_FOR_CUSTOMER':
+      case 'WAITING FOR CUSTOMER':
+        return styles.statusWarning;
+      case 'RESOLVED':
+        return styles.statusSuccess;
+      case 'CLOSED':
+      default:
+        return styles.statusMuted;
+    }
+  };
+
+  const getPriorityClass = (priority) => {
+    switch (priority?.toUpperCase()) {
+      case 'CRITICAL':
+      case 'URGENT':
+        return styles.priorityCritical;
+      case 'HIGH':
+        return styles.priorityHigh;
+      case 'MEDIUM':
+        return styles.priorityMedium;
+      case 'LOW':
+      default:
+        return styles.priorityLow;
+    }
   };
 
   const handleStartCallClick = () => {
@@ -33,151 +163,111 @@ export default function AgentTicketDetails() {
 
   const handleConfirmStartCall = () => {
     setShowCallModal(false);
-    const cleanId = (ticketId || '1018').replace('#', '');
+    const cleanId = (ticket?.ticketNumber || ticketId).replace('#', '');
     navigate(`/ticket/${cleanId}/call`);
   };
 
-  const handleSendCustomerReply = (e) => {
-    e.preventDefault();
-    if (!customerReplyText.trim()) return;
-
-    const newMsg = {
-      id: `msg_${Date.now()}`,
-      sender: 'agent',
-      senderName: `${currentAgent.name} (Support Agent)`,
-      time: 'Just now',
-      text: customerReplyText,
-      attachments: [],
-    };
-
-    setTicket((prev) => ({
-      ...prev,
-      conversation: [...prev.conversation, newMsg],
-      timeline: [
-        ...prev.timeline,
-        { event: `Agent ${currentAgent.name} replied to customer`, time: 'Just now' },
-      ],
-      updated: 'Just now',
-    }));
-
-    setCustomerReplyText('');
-    showToast('Reply sent to customer successfully!');
-  };
-
-  const handleAddInternalNote = (e) => {
-    e.preventDefault();
-    if (!internalNoteText.trim()) return;
-
-    const newNote = {
-      id: `note_${Date.now()}`,
-      author: currentAgent.name,
-      time: 'Just now',
-      text: internalNoteText,
-    };
-
-    setTicket((prev) => ({
-      ...prev,
-      internalNotes: [...(prev.internalNotes || []), newNote],
-      timeline: [
-        ...prev.timeline,
-        { event: `Internal note added by ${currentAgent.name}`, time: 'Just now' },
-      ],
-      updated: 'Just now',
-    }));
-
-    setInternalNoteText('');
-    showToast('Internal note saved!');
-  };
-
-  const handleStatusChange = (newStatus) => {
-    setTicket((prev) => ({
-      ...prev,
-      status: newStatus,
-      timeline: [
-        ...prev.timeline,
-        { event: `Status updated to ${newStatus}`, time: 'Just now' },
-      ],
-    }));
-    showToast(`Ticket status updated to "${newStatus}"`);
-  };
-
-  const handlePriorityChange = (newPriority) => {
-    setTicket((prev) => ({
-      ...prev,
-      priority: newPriority,
-      timeline: [
-        ...prev.timeline,
-        { event: `Priority changed to ${newPriority}`, time: 'Just now' },
-      ],
-    }));
-    showToast(`Priority changed to "${newPriority}"`);
-  };
-
-  const handleEscalate = () => {
-    setTicket((prev) => ({
-      ...prev,
-      priority: 'Critical',
-      status: 'In Progress',
-      timeline: [
-        ...prev.timeline,
-        { event: `Ticket escalated to Tier 3 Engineering`, time: 'Just now' },
-      ],
-    }));
-    showToast('Ticket #1024 escalated to Tier 3 Engineering');
-  };
-
-  const handleResolve = () => {
-    setTicket((prev) => ({
-      ...prev,
-      status: 'Resolved',
-      timeline: [
-        ...prev.timeline,
-        { event: `Ticket marked as Resolved by ${currentAgent.name}`, time: 'Just now' },
-      ],
-    }));
-    showToast('Ticket marked as Resolved!');
-  };
-
-  const getPriorityBadgeClass = (p) => {
-    switch (p?.toLowerCase()) {
-      case 'critical':
-        return styles.priorityCritical;
-      case 'high':
-        return styles.priorityHigh;
-      case 'medium':
-        return styles.priorityMedium;
-      case 'low':
-      default:
-        return styles.priorityLow;
-    }
-  };
-
-  const getStatusBadgeClass = (s) => {
-    switch (s?.toLowerCase()) {
-      case 'in progress':
-        return styles.statusInfo;
-      case 'waiting for customer':
-        return styles.statusWarning;
-      case 'resolved':
-        return styles.statusSuccess;
-      default:
-        return styles.statusOpen;
-    }
-  };
-
-  return (
-    <div className={styles.page}>
-      {/* Top Action & Breadcrumb Bar */}
-      <div className={styles.topBar}>
+  // Loading State
+  if (loading) {
+    return (
+      <div className={styles.page}>
         <button
           type="button"
-          className={styles.backBtn}
+          className={styles.backLink}
           onClick={() => navigate('/agent/queue')}
         >
           ← Back to My Queue
         </button>
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner} />
+          <p>Loading ticket details...</p>
+        </div>
+      </div>
+    );
+  }
 
-        <div className={styles.topActions}>
+  // Error / 404 State
+  if (error || !ticket) {
+    return (
+      <div className={styles.page}>
+        <button
+          type="button"
+          className={styles.backLink}
+          onClick={() => navigate('/agent/queue')}
+        >
+          ← Back to My Queue
+        </button>
+        <div className={styles.errorContainer}>
+          <h3 className={styles.errorTitle}>
+            {error?.status === 404 ? 'Ticket Not Found' : 'Unable to display ticket'}
+          </h3>
+          <p className={styles.errorMessage}>
+            {error?.message || 'Ticket not found or unavailable.'}
+          </p>
+          <button
+            type="button"
+            className={styles.retryBtn}
+            onClick={() => navigate('/agent/queue')}
+          >
+            ← Return to My Queue
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.page}>
+      {/* Back Link */}
+      <button
+        type="button"
+        className={styles.backLink}
+        onClick={() => navigate('/agent/queue')}
+      >
+        ← Back to My Queue
+      </button>
+
+      {/* Success & Error Toasts */}
+      {toastMessage && (
+        <div className={styles.toastSuccess} role="status">
+          <span>✓</span> {toastMessage}
+        </div>
+      )}
+      {claimError && (
+        <div className={styles.toastError} role="alert">
+          <span>⚠️</span> {claimError}
+        </div>
+      )}
+
+      {/* Ticket Header */}
+      <div className={styles.header}>
+        <div className={styles.titleArea}>
+          <div className={styles.idRow}>
+            <span className={styles.ticketId}>
+              {ticket.ticketNumber || ticket.id}
+            </span>
+            <span className={`${styles.statusPill} ${getStatusClass(ticket.status)}`}>
+              {ticket.status}
+            </span>
+            <span className={`${styles.priorityPill} ${getPriorityClass(ticket.priority)}`}>
+              {ticket.priority} Priority
+            </span>
+          </div>
+          <h1 className={styles.subjectTitle}>{ticket.subject}</h1>
+        </div>
+
+        <div className={styles.headerActions}>
+          {canClaim && (
+            <button
+              type="button"
+              className={styles.claimBtn}
+              onClick={handleClaimTicket}
+              disabled={claiming}
+            >
+              {claiming ? 'Claiming Ticket...' : '⚡ Claim Ticket'}
+            </button>
+          )}
+
           <button
             type="button"
             className={styles.videoCallBtn}
@@ -185,307 +275,124 @@ export default function AgentTicketDetails() {
           >
             📹 Start Video Call
           </button>
-          <button
-            type="button"
-            className={styles.escalateBtn}
-            onClick={handleEscalate}
-          >
-            🚨 Escalate Ticket
-          </button>
-          <button
-            type="button"
-            className={styles.resolveBtn}
-            onClick={handleResolve}
-          >
-            ✓ Mark as Resolved
-          </button>
         </div>
       </div>
 
       {showCallModal && (
         <CallConfirmationModal
           ticket={{
-            id: ticket.id,
+            id: ticket.ticketNumber || ticket.id,
             subject: ticket.subject,
-            customerName: ticket.customer?.name || 'Rahul Sharma',
+            customerName: ticket.customer?.name || 'Customer User',
           }}
           onConfirm={handleConfirmStartCall}
           onCancel={() => setShowCallModal(false)}
         />
       )}
 
-      {toastMessage && (
-        <div className={styles.toastSuccess}>
-          <span>✓</span> {toastMessage}
-        </div>
-      )}
-
-      {/* Ticket Header Card */}
-      <div className={styles.headerCard}>
-        <div className={styles.headerTop}>
-          <div className={styles.idGroup}>
-            <span className={styles.ticketIdBadge}>{ticket.id}</span>
-            <span className={`${styles.priorityBadge} ${getPriorityBadgeClass(ticket.priority)}`}>
-              {ticket.priority} Priority
-            </span>
-            <span className={`${styles.statusBadge} ${getStatusBadgeClass(ticket.status)}`}>
-              {ticket.status}
-            </span>
-          </div>
-
-          <div className={styles.slaBadge}>
-            ⏱ SLA: <strong>{ticket.slaTimeRemaining}</strong>
-          </div>
-        </div>
-
-        <h1 className={styles.ticketSubject}>{ticket.subject}</h1>
-      </div>
-
-      {/* Main Workspace Layout (2-Column Grid) */}
-      <div className={styles.workspaceGrid}>
-        {/* Left Workspace Column: Conversation & Composers */}
+      {/* Main Two-Column Structure: Left (Ticket Information) | Right (Conversation) */}
+      <div className={styles.grid}>
+        {/* Left Column: Ticket Information & Metadata */}
         <div className={styles.leftCol}>
-          {/* Conversation Thread Card */}
-          <div className={styles.card}>
-            <div className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Customer Conversation</h2>
-              <span className={styles.countBadge}>
-                {ticket.conversation.length} Messages
+          {/* Ticket Description Card */}
+          <div className={styles.infoCard}>
+            <h3 className={styles.infoTitle}>Ticket Description</h3>
+            <div className={styles.descriptionBox}>
+              {ticket.description}
+            </div>
+          </div>
+
+          {/* Ticket Details / Additional Information Card */}
+          <div className={styles.infoCard}>
+            <h3 className={styles.infoTitle}>Ticket Information</h3>
+
+            <div className={styles.infoList}>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Ticket Number</span>
+                <span className={styles.infoValue} style={{ fontFamily: 'monospace' }}>
+                  {ticket.ticketNumber}
+                </span>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Status</span>
+                <span className={`${styles.statusPill} ${getStatusClass(ticket.status)}`}>
+                  {ticket.status}
+                </span>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Priority</span>
+                <span className={styles.infoValue} style={{ fontWeight: 600 }}>
+                  {ticket.priority}
+                </span>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Category</span>
+                <span className={styles.infoValue}>
+                  {ticket.category?.name || 'General Support'}
+                </span>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Customer</span>
+                <span className={styles.infoValue}>
+                  {ticket.customer?.name || 'Customer User'}
+                </span>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Customer Email</span>
+                <span className={styles.infoValue}>
+                  {ticket.customer?.email || 'N/A'}
+                </span>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Assigned Agent</span>
+                <span className={styles.infoValue}>
+                  {ticket.assignedTo?.name || 'Unassigned'}
+                </span>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Created</span>
+                <span className={styles.infoValue}>{formatDate(ticket.createdAt)}</span>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Last Updated</span>
+                <span className={styles.infoValue}>{formatDate(ticket.updatedAt)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Conversation Card (Stage Placeholder) */}
+        <div className={styles.rightCol}>
+          <div className={styles.conversationCard}>
+            <div className={styles.conversationHeader}>
+              <h3 className={styles.conversationTitle}>Conversation</h3>
+              <span className={styles.messageCountBadge}>
+                Stage 1: Read-Only
               </span>
             </div>
 
-            <div className={styles.conversationList}>
-              {ticket.conversation.map((msg) => {
-                const isAgent = msg.sender === 'agent';
-                return (
-                  <div
-                    key={msg.id}
-                    className={`${styles.messageBubble} ${
-                      isAgent ? styles.agentMsg : styles.customerMsg
-                    }`}
-                  >
-                    <div className={styles.msgHeader}>
-                      <div className={styles.msgSenderGroup}>
-                        <div
-                          className={`${styles.msgAvatar} ${
-                            isAgent ? styles.agentAvatar : styles.customerAvatar
-                          }`}
-                        >
-                          {isAgent ? 'AJ' : ticket.customer.avatar || 'CS'}
-                        </div>
-                        <span className={styles.msgAuthor}>{msg.senderName}</span>
-                      </div>
-                      <span className={styles.msgTime}>{msg.time}</span>
-                    </div>
-
-                    <p className={styles.msgBody}>{msg.text}</p>
-
-                    {msg.attachments && msg.attachments.length > 0 && (
-                      <div className={styles.attachmentsList}>
-                        {msg.attachments.map((att, idx) => (
-                          <div key={idx} className={styles.attachmentChip}>
-                            <span className={styles.attIcon}>📎</span>
-                            <span className={styles.attName}>{att.name}</span>
-                            <span className={styles.attSize}>({att.size})</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Internal Notes Section (Visually Distinct Yellow/Amber Box) */}
-          <div className={styles.internalNotesCard}>
-            <div className={styles.notesHeader}>
-              <div className={styles.notesTitleGroup}>
-                <span className={styles.lockIcon}>🔒</span>
-                <div>
-                  <h3 className={styles.notesTitle}>Internal Agent Notes</h3>
-                  <p className={styles.notesSub}>
-                    Confidential audit trail — Visible ONLY to support agents and admin staff.
-                  </p>
-                </div>
+            <div className={styles.conversationBody}>
+              <div className={styles.messagesEmptyState}>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className={styles.emptyIcon}
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <h4>No messages yet</h4>
+                <p>Messaging will be available in the next stage.</p>
               </div>
-            </div>
-
-            <div className={styles.notesList}>
-              {ticket.internalNotes && ticket.internalNotes.length > 0 ? (
-                ticket.internalNotes.map((note) => (
-                  <div key={note.id} className={styles.noteItem}>
-                    <div className={styles.noteTop}>
-                      <span className={styles.noteAuthor}>✍️ {note.author}</span>
-                      <span className={styles.noteTime}>{note.time}</span>
-                    </div>
-                    <p className={styles.noteText}>{note.text}</p>
-                  </div>
-                ))
-              ) : (
-                <p className={styles.noNotesText}>No internal notes added yet.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Response & Internal Note Composer Tabs */}
-          <div className={styles.composerCard}>
-            <div className={styles.composerTabs}>
-              <button
-                type="button"
-                className={`${styles.composerTab} ${
-                  activeTab === 'reply' ? styles.activeComposerTab : ''
-                }`}
-                onClick={() => setActiveTab('reply')}
-              >
-                💬 Customer Reply
-              </button>
-              <button
-                type="button"
-                className={`${styles.composerTab} ${
-                  activeTab === 'internal_note' ? styles.activeComposerTab : ''
-                }`}
-                onClick={() => setActiveTab('internal_note')}
-              >
-                🔒 Add Internal Note
-              </button>
-            </div>
-
-            {activeTab === 'reply' ? (
-              <form onSubmit={handleSendCustomerReply} className={styles.composerForm}>
-                <textarea
-                  className={styles.composerTextarea}
-                  placeholder="Type your response to the customer..."
-                  rows={4}
-                  value={customerReplyText}
-                  onChange={(e) => setCustomerReplyText(e.target.value)}
-                  required
-                />
-                <div className={styles.composerFooter}>
-                  <button type="button" className={styles.attachBtn}>
-                    📎 Attach Files
-                  </button>
-                  <button type="submit" className={styles.sendBtn}>
-                    Send Reply →
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleAddInternalNote} className={styles.composerForm}>
-                <textarea
-                  className={`${styles.composerTextarea} ${styles.internalTextarea}`}
-                  placeholder="Type confidential internal investigation note for team members..."
-                  rows={4}
-                  value={internalNoteText}
-                  onChange={(e) => setInternalNoteText(e.target.value)}
-                  required
-                />
-                <div className={styles.composerFooter}>
-                  <span className={styles.internalHint}>
-                    🔒 Note will NOT be visible to customer
-                  </span>
-                  <button type="submit" className={styles.saveNoteBtn}>
-                    Save Internal Note
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-
-        {/* Right Sidebar Column: Ticket Metadata & Agent Controls */}
-        <div className={styles.rightCol}>
-          {/* Quick Controls Card */}
-          <div className={styles.sideCard}>
-            <h3 className={styles.sideTitle}>Agent Controls</h3>
-
-            <div className={styles.controlGroup}>
-              <Select
-                label="Ticket Status"
-                options={[
-                  { value: 'Open', label: 'Open', subtitle: 'New unhandled ticket', badge: 'Open', badgeColor: '#0A84FF' },
-                  { value: 'In Progress', label: 'In Progress', subtitle: 'Currently being investigated', badge: 'Active', badgeColor: '#FFD60A' },
-                  { value: 'Waiting for Customer', label: 'Waiting for Customer', subtitle: 'Awaiting customer response', badge: 'Waiting', badgeColor: '#FF9F0A' },
-                  { value: 'Resolved', label: 'Resolved', subtitle: 'Issue solved', badge: 'Resolved', badgeColor: '#30D158' },
-                ]}
-                value={ticket.status}
-                onChange={handleStatusChange}
-              />
-            </div>
-
-            <div className={styles.controlGroup}>
-              <Select
-                label="Priority Level"
-                options={[
-                  { value: 'Critical', label: 'Critical', subtitle: 'Outage / Blocker', badge: 'P1', badgeColor: '#FF453A' },
-                  { value: 'High', label: 'High', subtitle: 'Major feature broken', badge: 'P2', badgeColor: '#FF9F0A' },
-                  { value: 'Medium', label: 'Medium', subtitle: 'Standard issue', badge: 'P3', badgeColor: '#64D2FF' },
-                  { value: 'Low', label: 'Low', subtitle: 'Minor glitch / Question', badge: 'P4', badgeColor: '#94A3B8' },
-                ]}
-                value={ticket.priority}
-                onChange={handlePriorityChange}
-              />
-            </div>
-
-            <div className={styles.controlGroup}>
-              <Select
-                label="Assigned Agent"
-                options={[
-                  { value: 'Alex Johnson', label: 'Alex Johnson (Me)', subtitle: 'Customer Support', initials: 'AJ', badge: 'Me' },
-                  { value: 'Sarah Chen', label: 'Sarah Chen (Tier 2)', subtitle: 'Support Agent', initials: 'SC', badge: 'Agent' },
-                  { value: 'David Miller', label: 'David Miller (DevOps)', subtitle: 'Administrator', initials: 'DM', badge: 'Admin' },
-                  { value: 'Unassigned', label: 'Unassigned', subtitle: 'No role assigned', initials: 'UN' },
-                ]}
-                value={ticket.assignedAgent}
-                onChange={(val) => {
-                  setTicket((prev) => ({ ...prev, assignedAgent: val }));
-                  showToast(`Assigned agent changed to ${val}`);
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Customer Metadata Card */}
-          <div className={styles.sideCard}>
-            <h3 className={styles.sideTitle}>Customer Information</h3>
-            <div className={styles.customerBox}>
-              <div className={styles.custAvatarBig}>{ticket.customer.avatar || 'CS'}</div>
-              <div className={styles.custDetails}>
-                <h4 className={styles.custName}>{ticket.customer.name}</h4>
-                <p className={styles.custEmail}>{ticket.customer.email}</p>
-                <span className={styles.companyBadge}>{ticket.customer.company}</span>
-              </div>
-            </div>
-
-            <div className={styles.metaList}>
-              <div className={styles.metaRow}>
-                <span className={styles.metaKey}>Category</span>
-                <span className={styles.metaVal}>{ticket.category}</span>
-              </div>
-              <div className={styles.metaRow}>
-                <span className={styles.metaKey}>Created</span>
-                <span className={styles.metaVal}>{ticket.created}</span>
-              </div>
-              <div className={styles.metaRow}>
-                <span className={styles.metaKey}>Last Updated</span>
-                <span className={styles.metaVal}>{ticket.updated}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Activity Timeline Card */}
-          <div className={styles.sideCard}>
-            <h3 className={styles.sideTitle}>Activity History</h3>
-            <div className={styles.timelineList}>
-              {ticket.timeline.map((item, idx) => (
-                <div key={idx} className={styles.timelineItem}>
-                  <div className={styles.timelineDot} />
-                  <div className={styles.timelineInfo}>
-                    <p className={styles.timelineEvent}>{item.event}</p>
-                    <span className={styles.timelineTime}>{item.time}</span>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>

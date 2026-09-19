@@ -3,6 +3,8 @@ import { getMyTickets } from './getMyTickets.service.js';
 import { getTicketByIdForCustomer } from './getTicketDetails.service.js';
 import { getTicketMessages } from './getTicketMessages.service.js';
 import { getAgentQueue } from './getAgentQueue.service.js';
+import { getAgentTicketDetails } from './getAgentTicketDetails.service.js';
+import { claimTicket } from './claimTicket.service.js';
 
 export {
   createTicket,
@@ -11,6 +13,8 @@ export {
   getTicketByIdForCustomer,
   getTicketMessages,
   getAgentQueue,
+  getAgentTicketDetails,
+  claimTicket,
 };
 
 export default {
@@ -20,5 +24,9 @@ export default {
   getTicketByIdForCustomer,
   getTicketMessages,
   getAgentQueue,
+  getAgentTicketDetails,
+  claimTicket,
 };
+
+
 

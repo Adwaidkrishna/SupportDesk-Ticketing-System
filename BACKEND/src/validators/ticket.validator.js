@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 
 export const SUPPORTED_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-export const SUPPORTED_STATUSES = ['OPEN'];
+export const SUPPORTED_STATUSES = ['OPEN', 'IN_PROGRESS'];
+
 
 export const validateCreateTicketInput = (req, res, next) => {
   const { subject, description, categoryId, priority } = req.body;

@@ -42,9 +42,10 @@ const TicketSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['OPEN'],
+      enum: ['OPEN', 'IN_PROGRESS'],
       default: 'OPEN',
     },
+
   },
   { timestamps: true }
 );
