@@ -48,6 +48,15 @@ router.post(
   ticketController.sendCustomerMessage
 );
 
+// PATCH /api/v1/tickets/:ticketId/reopen - Reopen a RESOLVED ticket (Customer owner, Assigned Agent, or Admin)
+router.patch(
+  '/:ticketId/reopen',
+  authenticateUser,
+  authorizeRoles('customer', 'agent', 'admin'),
+  validateTicketIdParam,
+  ticketController.reopenTicket
+);
+
 // GET /api/v1/tickets/:ticketId - Customer ticket details (Read-only, Customer ID Isolation)
 router.get(
   '/:ticketId',

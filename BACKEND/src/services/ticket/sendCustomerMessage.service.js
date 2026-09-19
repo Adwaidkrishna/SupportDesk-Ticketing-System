@@ -27,6 +27,18 @@ export const sendCustomerMessage = async (ticketId, customerId, body) => {
     throw err;
   }
 
+  if (ticket.status === 'RESOLVED') {
+    const err = new Error('Ticket is resolved. Please reopen the ticket to send a message.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (ticket.status === 'CLOSED') {
+    const err = new Error('Ticket is closed. No further messages can be sent.');
+    err.statusCode = 400;
+    throw err;
+  }
+
   // 2. Persist new TicketMessage
   const message = await TicketMessage.create({
     ticketId,

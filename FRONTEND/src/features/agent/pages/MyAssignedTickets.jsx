@@ -23,15 +23,19 @@ export default function MyAssignedTickets() {
 
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('IN_PROGRESS');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  const fetchAssignedTickets = useCallback(async (pageToLoad = 1) => {
+  const fetchAssignedTickets = useCallback(async (pageToLoad = 1, currentStatus = statusFilter) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await getAgentAssignedTickets({ page: pageToLoad, limit: 10 });
+      const response = await getAgentAssignedTickets({
+        page: pageToLoad,
+        limit: 10,
+        status: currentStatus,
+      });
       if (response && response.success) {
         setTickets(response.data.tickets || []);
         setPagination(
@@ -51,11 +55,11 @@ export default function MyAssignedTickets() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
-    fetchAssignedTickets(1);
-  }, [fetchAssignedTickets]);
+    fetchAssignedTickets(1, statusFilter);
+  }, [fetchAssignedTickets, statusFilter]);
 
   // Derived available categories from real ticket dataset
   const availableCategories = useMemo(() => {
@@ -227,13 +231,6 @@ export default function MyAssignedTickets() {
         <div className={styles.tabsRow}>
           <button
             type="button"
-            className={`${styles.tabBtn} ${statusFilter === 'all' ? styles.activeTab : ''}`}
-            onClick={() => setStatusFilter('all')}
-          >
-            All Assigned ({pagination.total ?? tickets.length})
-          </button>
-          <button
-            type="button"
             className={`${styles.tabBtn} ${statusFilter === 'IN_PROGRESS' ? styles.activeTab : ''}`}
             onClick={() => setStatusFilter('IN_PROGRESS')}
           >
@@ -241,10 +238,17 @@ export default function MyAssignedTickets() {
           </button>
           <button
             type="button"
-            className={`${styles.tabBtn} ${statusFilter === 'OPEN' ? styles.activeTab : ''}`}
-            onClick={() => setStatusFilter('OPEN')}
+            className={`${styles.tabBtn} ${statusFilter === 'RESOLVED' ? styles.activeTab : ''}`}
+            onClick={() => setStatusFilter('RESOLVED')}
           >
-            Open
+            Resolved
+          </button>
+          <button
+            type="button"
+            className={`${styles.tabBtn} ${statusFilter === 'ALL' ? styles.activeTab : ''}`}
+            onClick={() => setStatusFilter('ALL')}
+          >
+            All Assigned
           </button>
         </div>
       </div>

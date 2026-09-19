@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import socket from '../../../socket/socket.js';
@@ -7,6 +7,8 @@ import {
   claimTicket,
   getAgentTicketMessages,
   sendAgentTicketMessage,
+  updateAgentTicketStatus,
+  reopenTicket,
 } from '../services/agentTicket.service';
 import styles from './AgentTicketDetails.module.css';
 import CallConfirmationModal from '../../video-call/components/CallConfirmationModal';
@@ -16,7 +18,7 @@ import CallConfirmationModal from '../../video-call/components/CallConfirmationM
  * Uses the exact same clean two-column layout as the Customer Ticket Details:
  * Left column: Ticket Description & Ticket Information.
  * Right column: Conversation History & Reply Composer.
- * Supports claiming OPEN unassigned tickets and replying when assigned.
+ * Supports claiming OPEN unassigned tickets, resolving, closing, and reopening when assigned.
  */
 export default function AgentTicketDetails() {
   const { ticketId } = useParams();
@@ -28,6 +30,10 @@ export default function AgentTicketDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
+
+  // Status Action state
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
 
   // Claim action state
   const [claiming, setClaiming] = useState(false);
@@ -41,6 +47,15 @@ export default function AgentTicketDetails() {
   const [replyText, setReplyText] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendError, setSendError] = useState('');
+
+  const messagesContainerRef = useRef(null);
+
+  // Auto-scroll messages container to bottom without scrolling window
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages, loadingMessages]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -168,6 +183,25 @@ export default function AgentTicketDetails() {
     };
   }, []);
 
+  // 3. Socket.IO: Listen for real-time status updates (RESOLVED, CLOSED, IN_PROGRESS)
+  useEffect(() => {
+    const handleStatusUpdate = (statusData) => {
+      const currentTargetId = ticket?.id || ticket?._id;
+      if (
+        statusData?.ticketNumber === ticket?.ticketNumber ||
+        String(statusData?.ticketId) === String(currentTargetId)
+      ) {
+        setTicket((prev) => (prev ? { ...prev, status: statusData.status } : prev));
+      }
+    };
+
+    socket.on('ticket:status', handleStatusUpdate);
+
+    return () => {
+      socket.off('ticket:status', handleStatusUpdate);
+    };
+  }, [ticket?.ticketNumber, ticket?.id, ticket?._id]);
+
   // Fetch ticket messages when assigned to current agent
   useEffect(() => {
     let isMounted = true;
@@ -274,6 +308,64 @@ export default function AgentTicketDetails() {
       setTimeout(() => setClaimError(''), 6000);
     } finally {
       setClaiming(false);
+    }
+  };
+
+  const handleResolveTicket = async () => {
+    if (!ticketId || statusUpdating || !isAssignedToMe) return;
+
+    try {
+      setStatusUpdating(true);
+      const response = await updateAgentTicketStatus(ticketId, 'RESOLVED');
+      const updatedData = response?.data?.ticket || response?.data;
+      if (updatedData) {
+        setTicket(updatedData);
+        showToast('Ticket marked as RESOLVED.');
+      }
+    } catch (err) {
+      console.error('Failed to resolve ticket:', err);
+      showToast(err?.response?.data?.message || err.message || 'Failed to resolve ticket.');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleConfirmClose = async () => {
+    if (!ticketId || statusUpdating || !isAssignedToMe) return;
+
+    try {
+      setStatusUpdating(true);
+      const response = await updateAgentTicketStatus(ticketId, 'CLOSED');
+      const updatedData = response?.data?.ticket || response?.data;
+      if (updatedData) {
+        setTicket(updatedData);
+        showToast('Ticket has been CLOSED.');
+        setShowCloseModal(false);
+      }
+    } catch (err) {
+      console.error('Failed to close ticket:', err);
+      showToast(err?.response?.data?.message || err.message || 'Failed to close ticket.');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleReopenTicket = async () => {
+    if (!ticketId || statusUpdating) return;
+
+    try {
+      setStatusUpdating(true);
+      const response = await reopenTicket(ticketId);
+      const updatedData = response?.data?.ticket || response?.data;
+      if (updatedData) {
+        setTicket(updatedData);
+        showToast('Ticket successfully reopened and returned to IN_PROGRESS.');
+      }
+    } catch (err) {
+      console.error('Failed to reopen ticket:', err);
+      showToast(err?.response?.data?.message || err.message || 'Failed to reopen ticket.');
+    } finally {
+      setStatusUpdating(false);
     }
   };
 
@@ -429,64 +521,102 @@ export default function AgentTicketDetails() {
 
   return (
     <div className={styles.page}>
-      {/* Back Link */}
-      <button
-        type="button"
-        className={styles.backLink}
-        onClick={() => navigate('/agent/queue')}
-      >
-        ← Back to My Queue
-      </button>
+      <div className={styles.topSection}>
+        {/* Ticket Header (One Horizontal Row) */}
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <button
+              type="button"
+              className={styles.backLink}
+              onClick={() => navigate('/agent/queue')}
+            >
+              ← Back to My Queue
+            </button>
 
-      {/* Success & Error Toasts */}
-      {toastMessage && (
-        <div className={styles.toastSuccess} role="status">
-          <span>✓</span> {toastMessage}
-        </div>
-      )}
-      {claimError && (
-        <div className={styles.toastError} role="alert">
-          <span>⚠️</span> {claimError}
-        </div>
-      )}
+            <span className={styles.headerDivider} aria-hidden="true" />
 
-      {/* Ticket Header */}
-      <div className={styles.header}>
-        <div className={styles.titleArea}>
-          <div className={styles.idRow}>
+            <h1 className={styles.subjectTitle} title={ticket.subject}>
+              {ticket.subject}
+            </h1>
+
             <span className={styles.ticketId}>
               {ticket.ticketNumber || ticket.id}
             </span>
+
             <span className={`${styles.statusPill} ${getStatusClass(ticket.status)}`}>
               {ticket.status}
             </span>
+
             <span className={`${styles.priorityPill} ${getPriorityClass(ticket.priority)}`}>
               {ticket.priority} Priority
             </span>
           </div>
-          <h1 className={styles.subjectTitle}>{ticket.subject}</h1>
-        </div>
 
-        <div className={styles.headerActions}>
-          {canClaim && (
+          <div className={styles.headerActions}>
+            {canClaim && (
+              <button
+                type="button"
+                className={styles.claimBtn}
+                onClick={handleClaimTicket}
+                disabled={claiming}
+              >
+                {claiming ? 'Claiming Ticket...' : '⚡ Claim Ticket'}
+              </button>
+            )}
+
+            {isAssignedToMe && ticket.status === 'IN_PROGRESS' && (
+              <>
+                <button
+                  type="button"
+                  className={styles.resolveBtn}
+                  onClick={handleResolveTicket}
+                  disabled={statusUpdating}
+                >
+                  {statusUpdating ? 'Updating...' : '✓ Resolve'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.closeBtn}
+                  onClick={() => setShowCloseModal(true)}
+                  disabled={statusUpdating}
+                >
+                  ✕ Close
+                </button>
+              </>
+            )}
+
+            {isAssignedToMe && ticket.status === 'RESOLVED' && (
+              <button
+                type="button"
+                className={styles.reopenBtn}
+                onClick={handleReopenTicket}
+                disabled={statusUpdating}
+              >
+                {statusUpdating ? 'Reopening...' : '↺ Reopen'}
+              </button>
+            )}
+
             <button
               type="button"
-              className={styles.claimBtn}
-              onClick={handleClaimTicket}
-              disabled={claiming}
+              className={styles.videoCallBtn}
+              onClick={handleStartCallClick}
             >
-              {claiming ? 'Claiming Ticket...' : '⚡ Claim Ticket'}
+              📹 Start Video Call
             </button>
-          )}
-
-          <button
-            type="button"
-            className={styles.videoCallBtn}
-            onClick={handleStartCallClick}
-          >
-            📹 Start Video Call
-          </button>
+          </div>
         </div>
+
+        {/* Success & Error Toasts */}
+        {toastMessage && (
+          <div className={styles.toastSuccess} role="status">
+            <span>✓</span> {toastMessage}
+          </div>
+        )}
+        {claimError && (
+          <div className={styles.toastError} role="alert">
+            <span>⚠️</span> {claimError}
+          </div>
+        )}
       </div>
 
       {showCallModal && (
@@ -501,86 +631,171 @@ export default function AgentTicketDetails() {
         />
       )}
 
-      {/* Main Two-Column Structure: Left (Ticket Information) | Right (Conversation) */}
+      {showCloseModal && (
+        <div className={styles.modalBackdrop} onClick={() => setShowCloseModal(false)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Close Ticket</h3>
+            <p className={styles.modalDesc}>
+              Are you sure you want to close ticket <strong>{ticket.ticketNumber || ticket.id}</strong>?
+              This action closes the ticket as invalid, duplicate, spam, or unserviceable.
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.modalCancelBtn}
+                onClick={() => setShowCloseModal(false)}
+                disabled={statusUpdating}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.modalConfirmCloseBtn}
+                onClick={handleConfirmClose}
+                disabled={statusUpdating}
+              >
+                {statusUpdating ? 'Closing...' : 'Confirm Close'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Two-Column Structure: Left (~65% Ticket Details) | Right (~35% Controlled Height Conversation) */}
       <div className={styles.grid}>
-        {/* Left Column: Ticket Information & Metadata */}
+        {/* Left Column: Structured Information Cards */}
         <div className={styles.leftCol}>
-          {/* Ticket Description Card */}
+          {/* Card 1: Ticket Description */}
           <div className={styles.infoCard}>
-            <h3 className={styles.infoTitle}>Ticket Description</h3>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>
+                <span className={styles.cardIcon}>📝</span>
+                Ticket Description
+              </h3>
+            </div>
             <div className={styles.descriptionBox}>
               {ticket.description}
             </div>
           </div>
 
-          {/* Ticket Details / Additional Information Card */}
+          {/* Card 2: Ticket Overview & Metadata Grid */}
           <div className={styles.infoCard}>
-            <h3 className={styles.infoTitle}>Ticket Information</h3>
-
-            <div className={styles.infoList}>
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Ticket Number</span>
-                <span className={styles.infoValue} style={{ fontFamily: 'monospace' }}>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>
+                <span className={styles.cardIcon}>ℹ️</span>
+                Ticket Overview
+              </h3>
+            </div>
+            <div className={styles.metaGrid}>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Ticket Number</span>
+                <span className={styles.metaValue} style={{ fontFamily: 'monospace' }}>
                   {ticket.ticketNumber}
                 </span>
               </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Status</span>
-                <span className={`${styles.statusPill} ${getStatusClass(ticket.status)}`}>
-                  {ticket.status}
-                </span>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Status</span>
+                <div className={styles.metaValue}>
+                  <span className={`${styles.statusPill} ${getStatusClass(ticket.status)}`}>
+                    {ticket.status}
+                  </span>
+                </div>
               </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Priority</span>
-                <span className={styles.infoValue} style={{ fontWeight: 600 }}>
-                  {ticket.priority}
-                </span>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Priority</span>
+                <div className={styles.metaValue}>
+                  <span className={`${styles.priorityPill} ${getPriorityClass(ticket.priority)}`}>
+                    {ticket.priority}
+                  </span>
+                </div>
               </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Category</span>
-                <span className={styles.infoValue}>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Category</span>
+                <span className={styles.metaValue}>
                   {ticket.category?.name || 'General Support'}
                 </span>
               </div>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Created</span>
+                <span className={styles.metaValue}>{formatDate(ticket.createdAt)}</span>
+              </div>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Last Updated</span>
+                <span className={styles.metaValue}>{formatDate(ticket.updatedAt)}</span>
+              </div>
+            </div>
+          </div>
 
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Customer</span>
-                <span className={styles.infoValue}>
+          {/* Card 3: Customer Information */}
+          <div className={styles.infoCard}>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>
+                <span className={styles.cardIcon}>👤</span>
+                Customer Information
+              </h3>
+            </div>
+            <div className={styles.personRow}>
+              <div className={styles.personAvatar}>
+                {ticket.customer?.name
+                  ? ticket.customer.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .substring(0, 2)
+                      .toUpperCase()
+                  : 'CU'}
+              </div>
+              <div className={styles.personInfo}>
+                <span className={styles.personName}>
                   {ticket.customer?.name || 'Customer User'}
                 </span>
-              </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Customer Email</span>
-                <span className={styles.infoValue}>
+                <span className={styles.personEmail}>
                   {ticket.customer?.email || 'N/A'}
                 </span>
+                <span className={`${styles.roleChip} ${styles.customerRoleChip}`}>Customer</span>
               </div>
+            </div>
+          </div>
 
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Assigned Agent</span>
-                <span className={styles.infoValue}>
-                  {ticket.assignedTo?.name || 'Unassigned'}
+          {/* Card 4: Assignment Details */}
+          <div className={styles.infoCard}>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>
+                <span className={styles.cardIcon}>🛡️</span>
+                Assignment Details
+              </h3>
+            </div>
+            <div className={styles.personRow}>
+              <div className={`${styles.personAvatar} ${styles.agentAvatar}`}>
+                {ticket.assignedTo?.name
+                  ? ticket.assignedTo.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .substring(0, 2)
+                      .toUpperCase()
+                  : 'SA'}
+              </div>
+              <div className={styles.personInfo}>
+                <span className={styles.personName}>
+                  {ticket.assignedTo?.name || (ticket.assignedTo ? 'Assigned Agent' : 'Unassigned')}
                 </span>
-              </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Created</span>
-                <span className={styles.infoValue}>{formatDate(ticket.createdAt)}</span>
-              </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Last Updated</span>
-                <span className={styles.infoValue}>{formatDate(ticket.updatedAt)}</span>
+                <span className={styles.personEmail}>
+                  {ticket.assignedTo?.email || (ticket.assignedTo ? '' : 'Ticket is waiting for an agent')}
+                </span>
+                {isAssignedToMe ? (
+                  <span className={`${styles.roleChip} ${styles.agentRoleChip}`}>Assigned to you</span>
+                ) : ticket.assignedTo ? (
+                  <span className={`${styles.roleChip} ${styles.agentRoleChip}`}>Assigned Support Specialist</span>
+                ) : (
+                  <span className={`${styles.roleChip} ${styles.customerRoleChip}`}>Unassigned Queue</span>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Conversation Card */}
+        {/* Right Column: Conversation Card (STABLE CONTROLLED HEIGHT) */}
         <div className={styles.rightCol}>
           <div className={styles.conversationCard}>
             <div className={styles.conversationHeader}>
@@ -594,7 +809,7 @@ export default function AgentTicketDetails() {
               </span>
             </div>
 
-            <div className={styles.conversationBody}>
+            <div className={styles.conversationBody} ref={messagesContainerRef}>
               {!isAssignedToMe ? (
                 <div className={styles.messagesEmptyState}>
                   <svg
@@ -651,24 +866,26 @@ export default function AgentTicketDetails() {
                 <div className={styles.messageList}>
                   {messages.map((msg) => (
                     <div key={msg.id || msg._id} className={getMessageItemClass(msg.senderRole)}>
-                      <div className={styles.avatar}>
-                        {getSenderInitials(msg)}
-                      </div>
-                      <div className={styles.msgBody}>
-                        <div className={styles.msgMeta}>
-                          <span className={styles.senderName}>
-                            {getSenderDisplayName(msg)}
-                          </span>
-                          <span className={getRoleBadgeClass(msg.senderRole)}>
-                            {getRoleLabel(msg.senderRole)}
-                          </span>
+                      <div className={styles.msgMeta}>
+                        <div className={styles.avatar}>
+                          {getSenderInitials(msg)}
+                        </div>
+                        <div className={styles.metaInfo}>
+                          <div className={styles.metaTop}>
+                            <span className={styles.senderName}>
+                              {getSenderDisplayName(msg)}
+                            </span>
+                            <span className={getRoleBadgeClass(msg.senderRole)}>
+                              {getRoleLabel(msg.senderRole)}
+                            </span>
+                          </div>
                           <span className={styles.timestamp}>
                             {formatDate(msg.createdAt)}
                           </span>
                         </div>
-                        <div className={styles.msgBubble}>
-                          <div className={styles.msgText}>{msg.body}</div>
-                        </div>
+                      </div>
+                      <div className={styles.msgBubble}>
+                        <div className={styles.msgText}>{msg.body}</div>
                       </div>
                     </div>
                   ))}
@@ -676,8 +893,8 @@ export default function AgentTicketDetails() {
               )}
             </div>
 
-            {/* Message Composer (Only when assigned to current agent) */}
-            {isAssignedToMe && (
+            {/* Message Composer (Only when assigned to current agent and IN_PROGRESS) */}
+            {isAssignedToMe && ticket.status === 'IN_PROGRESS' && (
               <div className={styles.composerCard}>
                 {sendError && (
                   <div className={styles.composerError} role="alert">
@@ -685,24 +902,73 @@ export default function AgentTicketDetails() {
                   </div>
                 )}
                 <form onSubmit={handleSendMessage} className={styles.composerForm}>
-                  <textarea
-                    className={styles.composerTextarea}
-                    placeholder="Type your reply to the customer..."
-                    rows={3}
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    disabled={sendingMessage}
-                  />
-                  <div className={styles.composerActions}>
+                  <div className={styles.composerBox}>
+                    <textarea
+                      className={styles.composerTextarea}
+                      placeholder="Type your reply to the customer..."
+                      rows={1}
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      disabled={sendingMessage}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (replyText.trim() && !sendingMessage) {
+                            handleSendMessage(e);
+                          }
+                        }
+                      }}
+                    />
                     <button
                       type="submit"
-                      className={styles.sendBtn}
+                      className={styles.sendIconBtn}
                       disabled={sendingMessage || !replyText.trim()}
+                      title="Send reply"
+                      aria-label="Send reply"
                     >
-                      {sendingMessage ? 'Sending...' : 'Send Reply'}
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={styles.sendIcon}
+                      >
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
                     </button>
                   </div>
                 </form>
+              </div>
+            )}
+
+            {/* Resolved Status Notice */}
+            {isAssignedToMe && ticket.status === 'RESOLVED' && (
+              <div className={`${styles.statusNoticeCard} ${styles.resolvedNotice}`}>
+                <h4 className={styles.statusNoticeTitle}>✓ Ticket is Marked as Resolved</h4>
+                <p className={styles.statusNoticeDesc}>
+                  This issue was resolved. To send further replies to the customer, please reopen the ticket first.
+                </p>
+                <button
+                  type="button"
+                  className={styles.reopenBtn}
+                  onClick={handleReopenTicket}
+                  disabled={statusUpdating}
+                >
+                  {statusUpdating ? 'Reopening...' : '↺ Reopen Ticket'}
+                </button>
+              </div>
+            )}
+
+            {/* Closed Status Notice */}
+            {isAssignedToMe && ticket.status === 'CLOSED' && (
+              <div className={`${styles.statusNoticeCard} ${styles.closedNotice}`}>
+                <h4 className={styles.statusNoticeTitle}>✕ Ticket Closed</h4>
+                <p className={styles.statusNoticeDesc}>
+                  This ticket has been permanently closed. The conversation history remains preserved for reference.
+                </p>
               </div>
             )}
           </div>

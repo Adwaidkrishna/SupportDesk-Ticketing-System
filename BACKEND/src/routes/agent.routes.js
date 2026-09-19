@@ -6,6 +6,7 @@ import {
   validateGetAgentQueueInput,
   validateTicketIdParam,
   validateMessageInput,
+  validateUpdateTicketStatusInput,
 } from '../validators/ticket.validator.js';
 
 const router = express.Router();
@@ -63,6 +64,16 @@ router.post(
   validateTicketIdParam,
   validateMessageInput,
   ticketController.sendAgentMessage
+);
+
+// PATCH /api/v1/agent/tickets/:ticketId/status - Update ticket status (Resolve or Close)
+router.patch(
+  '/tickets/:ticketId/status',
+  authenticateUser,
+  authorizeRoles('agent'),
+  validateTicketIdParam,
+  validateUpdateTicketStatusInput,
+  ticketController.updateAgentTicketStatus
 );
 
 export default router;

@@ -34,7 +34,14 @@ export const getAgentAssignedTickets = async ({
   };
 
   if (status) {
-    query.status = status.toUpperCase();
+    const normalizedStatus = status.toUpperCase();
+    if (normalizedStatus !== 'ALL') {
+      query.status = normalizedStatus;
+    }
+    // If status is 'ALL', no status constraint is added, exposing all assigned tickets (IN_PROGRESS, RESOLVED, CLOSED)
+  } else {
+    // Default active assigned work view: strictly IN_PROGRESS
+    query.status = 'IN_PROGRESS';
   }
 
   const skip = (page - 1) * limit;

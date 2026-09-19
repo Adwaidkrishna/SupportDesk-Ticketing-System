@@ -9,6 +9,8 @@ import sendCustomerMessage from './sendCustomerMessage.controller.js';
 import sendAgentMessage from './sendAgentMessage.controller.js';
 import getAgentTicketMessages from './getAgentTicketMessages.controller.js';
 import getAgentAssignedTickets from './getAgentAssignedTickets.controller.js';
+import updateAgentTicketStatus from './updateAgentTicketStatus.controller.js';
+import reopenTicket from './reopenTicket.controller.js';
 
 export {
   createTicket,
@@ -22,6 +24,8 @@ export {
   sendAgentMessage,
   getAgentTicketMessages,
   getAgentAssignedTickets,
+  updateAgentTicketStatus,
+  reopenTicket,
 };
 
 export default {
@@ -36,6 +40,8 @@ export default {
   sendAgentMessage,
   getAgentTicketMessages,
   getAgentAssignedTickets,
+  updateAgentTicketStatus,
+  reopenTicket,
 };
 
 

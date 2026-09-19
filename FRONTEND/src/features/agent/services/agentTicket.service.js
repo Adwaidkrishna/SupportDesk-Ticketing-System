@@ -85,6 +85,31 @@ export async function getAgentAssignedTickets({ page = 1, limit = 10, status } =
   return api.get(endpoint);
 }
 
+/**
+ * Update status of an assigned ticket (RESOLVED or CLOSED).
+ * @param {string} ticketId - Ticket ID
+ * @param {'RESOLVED'|'CLOSED'} status - Desired status
+ * @returns {Promise<{ success: boolean, message: string, data: { ticket: Object } }>}
+ */
+export async function updateAgentTicketStatus(ticketId, status) {
+  if (!ticketId) {
+    throw new Error('Ticket ID parameter is required.');
+  }
+  return api.patch(`/agent/tickets/${ticketId}/status`, { status });
+}
+
+/**
+ * Reopen a RESOLVED ticket back to IN_PROGRESS.
+ * @param {string} ticketId - Ticket ID
+ * @returns {Promise<{ success: boolean, message: string, data: { ticket: Object } }>}
+ */
+export async function reopenTicket(ticketId) {
+  if (!ticketId) {
+    throw new Error('Ticket ID parameter is required.');
+  }
+  return api.patch(`/tickets/${ticketId}/reopen`);
+}
+
 export default {
   getAgentQueue,
   getAgentTicketById,
@@ -92,5 +117,7 @@ export default {
   getAgentTicketMessages,
   sendAgentTicketMessage,
   getAgentAssignedTickets,
+  updateAgentTicketStatus,
+  reopenTicket,
 };
 

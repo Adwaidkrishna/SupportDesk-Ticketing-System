@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 export const SUPPORTED_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-export const SUPPORTED_STATUSES = ['OPEN', 'IN_PROGRESS'];
+export const SUPPORTED_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
 
 
 export const validateCreateTicketInput = (req, res, next) => {
@@ -252,6 +252,31 @@ export const validateMessageInput = (req, res, next) => {
   }
 
   req.validatedBody = { body: trimmedBody };
+  next();
+};
+
+/**
+ * Validates status for PATCH /api/v1/agent/tickets/:ticketId/status
+ */
+export const validateUpdateTicketStatusInput = (req, res, next) => {
+  const { status } = req.body || {};
+
+  if (!status || typeof status !== 'string') {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Status is required and must be a string.',
+    });
+  }
+
+  const normalized = status.trim().toUpperCase();
+  if (!['RESOLVED', 'CLOSED'].includes(normalized)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error: Status must be either RESOLVED or CLOSED.',
+    });
+  }
+
+  req.validatedBody = { status: normalized };
   next();
 };
 

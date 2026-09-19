@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import socket from '../../../socket/socket.js';
-import { getTicketById, getTicketMessages, sendTicketMessage } from '../services/ticket.service';
+import {
+  getTicketById,
+  getTicketMessages,
+  sendTicketMessage,
+  reopenTicket,
+} from '../services/ticket.service';
 import styles from './TicketDetails.module.css';
 
 /**
@@ -18,6 +23,10 @@ export default function TicketDetails() {
   const [loadingTicket, setLoadingTicket] = useState(true);
   const [ticketError, setTicketError] = useState('');
 
+  // Reopen and Toast state
+  const [reopening, setReopening] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
   // Ticket Messages state
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(true);
@@ -27,6 +36,15 @@ export default function TicketDetails() {
   const [replyText, setReplyText] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sendError, setSendError] = useState('');
+
+  const messagesContainerRef = useRef(null);
+
+  // Auto-scroll messages container to bottom without scrolling window
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messages, loadingMessages]);
 
   // 1. Socket.IO: Join and leave ticket room (Socket lifecycle managed in AuthContext)
   useEffect(() => {
@@ -81,6 +99,25 @@ export default function TicketDetails() {
       socket.off('message:new', handleNewMessage);
     };
   }, []);
+
+  // 3. Socket.IO: Listen for live status changes (RESOLVED, CLOSED, IN_PROGRESS)
+  useEffect(() => {
+    const handleStatusUpdate = (statusData) => {
+      const currentTargetId = ticket?.id || ticket?._id;
+      if (
+        statusData?.ticketNumber === ticket?.ticketNumber ||
+        String(statusData?.ticketId) === String(currentTargetId)
+      ) {
+        setTicket((prev) => (prev ? { ...prev, status: statusData.status } : prev));
+      }
+    };
+
+    socket.on('ticket:status', handleStatusUpdate);
+
+    return () => {
+      socket.off('ticket:status', handleStatusUpdate);
+    };
+  }, [ticket?.ticketNumber, ticket?.id, ticket?._id]);
 
   // Fetch ticket details
   useEffect(() => {
@@ -211,6 +248,26 @@ export default function TicketDetails() {
     }
   };
 
+  const handleReopenTicket = async () => {
+    if (!ticketId || reopening) return;
+
+    try {
+      setReopening(true);
+      const response = await reopenTicket(ticketId);
+      const updatedData = response?.data?.ticket || response?.data;
+      if (updatedData) {
+        setTicket(updatedData);
+        setToastMessage('Ticket reopened successfully! You can now send messages to support.');
+        setTimeout(() => setToastMessage(''), 5000);
+      }
+    } catch (err) {
+      console.error('Failed to reopen ticket:', err);
+      setSendError(err?.response?.data?.message || err.message || 'Failed to reopen ticket.');
+    } finally {
+      setReopening(false);
+    }
+  };
+
   const formatDate = (isoString) => {
     if (!isoString) return 'N/A';
     const date = new Date(isoString);
@@ -234,6 +291,21 @@ export default function TicketDetails() {
       case 'CLOSED':
       default:
         return styles.statusMuted;
+    }
+  };
+
+  const getPriorityClass = (priority) => {
+    switch (priority?.toUpperCase()) {
+      case 'CRITICAL':
+      case 'URGENT':
+        return styles.priorityCritical;
+      case 'HIGH':
+        return styles.priorityHigh;
+      case 'MEDIUM':
+        return styles.priorityMedium;
+      case 'LOW':
+      default:
+        return styles.priorityLow;
     }
   };
 
@@ -327,95 +399,179 @@ export default function TicketDetails() {
 
   return (
     <div className={styles.page}>
-      {/* Back Link */}
-      <Link to="/customer/tickets" className={styles.backLink}>
-        ← Back to My Tickets
-      </Link>
+      <div className={styles.topSection}>
+        {/* Ticket Header (One Horizontal Row) */}
+        <div className={styles.header}>
+          <div className={styles.headerLeft}>
+            <Link to="/customer/tickets" className={styles.backLink}>
+              ← Back to My Tickets
+            </Link>
 
-      {/* Ticket Header */}
-      <div className={styles.header}>
-        <div className={styles.titleArea}>
-          <div className={styles.idRow}>
+            <span className={styles.headerDivider} aria-hidden="true" />
+
+            <h1 className={styles.subjectTitle} title={ticket.subject}>
+              {ticket.subject}
+            </h1>
+
             <span className={styles.ticketId}>{ticket.ticketNumber}</span>
+
             <span className={`${styles.statusPill} ${getStatusClass(ticket.status)}`}>
               {ticket.status}
             </span>
-            <span className={styles.priorityPill} style={{ color: '#0A84FF' }}>
+
+            <span className={`${styles.priorityPill} ${getPriorityClass(ticket.priority)}`}>
               {ticket.priority} Priority
             </span>
           </div>
-          <h1 className={styles.subjectTitle}>{ticket.subject}</h1>
+
+          {/* Customer header actions: Reopen when RESOLVED */}
+          <div className={styles.headerActions}>
+            {ticket.status === 'RESOLVED' && (
+              <button
+                type="button"
+                className={styles.reopenBtn}
+                onClick={handleReopenTicket}
+                disabled={reopening}
+              >
+                {reopening ? 'Reopening...' : '↺ Reopen Ticket'}
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Toast Notification */}
+        {toastMessage && (
+          <div className={styles.toastSuccess} role="status">
+            <span>✓</span> {toastMessage}
+          </div>
+        )}
+
+        {/* Ticket Status Banners */}
+        {ticket.status === 'RESOLVED' && (
+          <div className={styles.resolvedBanner}>
+            <div className={styles.bannerTextGroup}>
+              <h4 className={styles.bannerTitle}>✓ This ticket has been marked as resolved</h4>
+              <p className={styles.bannerSubtitle}>
+                If your issue is not fully resolved, use the Reopen button to continue chatting with support.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {ticket.status === 'CLOSED' && (
+          <div className={styles.closedBanner}>
+            <div className={styles.bannerTextGroup}>
+              <h4 className={styles.bannerTitle}>✕ This ticket has been closed</h4>
+              <p className={styles.bannerSubtitle}>
+                This ticket was closed as invalid, duplicate, spam, or unserviceable.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Main Two-Column Structure: Left (Ticket Information) | Right (Conversation) */}
+      {/* Main Two-Column Structure: Left (~65% Ticket Details) | Right (~35% Controlled Height Conversation) */}
       <div className={styles.grid}>
-        {/* Left Column: Ticket Information & Metadata */}
+        {/* Left Column: Structured Information Cards */}
         <div className={styles.leftCol}>
-          {/* Ticket Description Card */}
+          {/* Card 1: Ticket Description */}
           <div className={styles.infoCard}>
-            <h3 className={styles.infoTitle}>Ticket Description</h3>
-            <div style={{
-              padding: '16px 18px',
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              color: 'var(--color-text-primary)',
-              lineHeight: '1.6',
-              fontSize: '0.9rem',
-              whiteSpace: 'pre-wrap',
-            }}>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>
+                <span className={styles.cardIcon}>📝</span>
+                Ticket Description
+              </h3>
+            </div>
+            <div className={styles.descriptionBox}>
               {ticket.description}
             </div>
           </div>
 
-          {/* Ticket Details / Additional Information Card */}
+          {/* Card 2: Ticket Overview & Metadata Grid */}
           <div className={styles.infoCard}>
-            <h3 className={styles.infoTitle}>Ticket Information</h3>
-
-            <div className={styles.infoList}>
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Ticket Number</span>
-                <span className={styles.infoValue} style={{ fontFamily: 'monospace' }}>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>
+                <span className={styles.cardIcon}>ℹ️</span>
+                Ticket Overview
+              </h3>
+            </div>
+            <div className={styles.metaGrid}>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Ticket Number</span>
+                <span className={styles.metaValue} style={{ fontFamily: 'monospace' }}>
                   {ticket.ticketNumber}
                 </span>
               </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Status</span>
-                <span className={`${styles.statusPill} ${getStatusClass(ticket.status)}`}>
-                  {ticket.status}
-                </span>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Status</span>
+                <div className={styles.metaValue}>
+                  <span className={`${styles.statusPill} ${getStatusClass(ticket.status)}`}>
+                    {ticket.status}
+                  </span>
+                </div>
               </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Priority</span>
-                <span className={styles.infoValue} style={{ fontWeight: 600 }}>
-                  {ticket.priority}
-                </span>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Priority</span>
+                <div className={styles.metaValue}>
+                  <span className={`${styles.priorityPill} ${getPriorityClass(ticket.priority)}`}>
+                    {ticket.priority}
+                  </span>
+                </div>
               </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Category</span>
-                <span className={styles.infoValue}>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Category</span>
+                <span className={styles.metaValue}>
                   {ticket.category?.name || 'General Support'}
                 </span>
               </div>
-
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Created</span>
-                <span className={styles.infoValue}>{formatDate(ticket.createdAt)}</span>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Created</span>
+                <span className={styles.metaValue}>{formatDate(ticket.createdAt)}</span>
               </div>
+              <div className={styles.metaTile}>
+                <span className={styles.metaLabel}>Last Updated</span>
+                <span className={styles.metaValue}>{formatDate(ticket.updatedAt)}</span>
+              </div>
+            </div>
+          </div>
 
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Last Updated</span>
-                <span className={styles.infoValue}>{formatDate(ticket.updatedAt)}</span>
+          {/* Card 3: Support Specialist / Assignment */}
+          <div className={styles.infoCard}>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>
+                <span className={styles.cardIcon}>🛡️</span>
+                Support Specialist
+              </h3>
+            </div>
+            <div className={styles.personRow}>
+              <div className={styles.personAvatar}>
+                {ticket.assignedTo?.name
+                  ? ticket.assignedTo.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .substring(0, 2)
+                      .toUpperCase()
+                  : 'SD'}
+              </div>
+              <div className={styles.personInfo}>
+                <span className={styles.personName}>
+                  {ticket.assignedTo?.name || 'Support Queue'}
+                </span>
+                <span className={styles.personEmail}>
+                  {ticket.assignedTo?.email || 'Awaiting agent assignment'}
+                </span>
+                {ticket.assignedTo ? (
+                  <span className={styles.roleChip}>Dedicated Specialist</span>
+                ) : (
+                  <span className={`${styles.roleChip} ${styles.unassignedChip}`}>Awaiting Agent</span>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Conversation Message History (Read-Only) */}
+        {/* Right Column: Conversation Card (STABLE CONTROLLED HEIGHT) */}
         <div className={styles.rightCol}>
           <div className={styles.conversationCard}>
             <div className={styles.conversationHeader}>
@@ -427,8 +583,8 @@ export default function TicketDetails() {
               </span>
             </div>
 
-            {/* Conversation Content Area */}
-            <div className={styles.conversationBody}>
+            {/* Scrollable Message Area */}
+            <div className={styles.conversationBody} ref={messagesContainerRef}>
               {loadingMessages ? (
                 <div className={styles.messagesLoadingState}>
                   <div className={styles.spinner} />
@@ -447,34 +603,42 @@ export default function TicketDetails() {
                 </div>
               ) : messages.length === 0 ? (
                 <div className={styles.messagesEmptyState}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={styles.emptyIcon}>
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    className={styles.emptyIcon}
+                  >
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
                   <h4>No messages yet</h4>
-                  <p>There are no messages on this ticket yet.</p>
+                  <p>There are no messages on this ticket yet. Send a message below to start chatting.</p>
                 </div>
               ) : (
                 <div className={styles.messageList}>
                   {messages.map((msg) => (
                     <div key={msg.id || msg._id} className={getMessageItemClass(msg.senderRole)}>
-                      <div className={styles.avatar}>
-                        {getSenderInitials(msg)}
-                      </div>
-                      <div className={styles.msgBody}>
-                        <div className={styles.msgMeta}>
-                          <span className={styles.senderName}>
-                            {getSenderDisplayName(msg)}
-                          </span>
-                          <span className={getRoleBadgeClass(msg.senderRole)}>
-                            {getRoleLabel(msg.senderRole)}
-                          </span>
+                      <div className={styles.msgMeta}>
+                        <div className={styles.avatar}>
+                          {getSenderInitials(msg)}
+                        </div>
+                        <div className={styles.metaInfo}>
+                          <div className={styles.metaTop}>
+                            <span className={styles.senderName}>
+                              {getSenderDisplayName(msg)}
+                            </span>
+                            <span className={getRoleBadgeClass(msg.senderRole)}>
+                              {getRoleLabel(msg.senderRole)}
+                            </span>
+                          </div>
                           <span className={styles.timestamp}>
                             {formatDate(msg.createdAt)}
                           </span>
                         </div>
-                        <div className={styles.msgBubble}>
-                          <div className={styles.msgText}>{msg.body}</div>
-                        </div>
+                      </div>
+                      <div className={styles.msgBubble}>
+                        <div className={styles.msgText}>{msg.body}</div>
                       </div>
                     </div>
                   ))}
@@ -482,33 +646,76 @@ export default function TicketDetails() {
               )}
             </div>
 
-            {/* Message Composer */}
-            <div className={styles.composerCard}>
-              {sendError && (
-                <div className={styles.composerError} role="alert">
-                  <span>⚠️</span> {sendError}
-                </div>
-              )}
-              <form onSubmit={handleSendMessage} className={styles.composerForm}>
-                <textarea
-                  className={styles.composerTextarea}
-                  placeholder="Type your message..."
-                  rows={3}
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  disabled={sendingMessage}
-                />
-                <div className={styles.composerActions}>
-                  <button
-                    type="submit"
-                    className={styles.sendBtn}
-                    disabled={sendingMessage || !replyText.trim()}
-                  >
-                    {sendingMessage ? 'Sending...' : 'Send Message'}
-                  </button>
-                </div>
-              </form>
-            </div>
+            {/* Message Composer — shown when customer can reply (OPEN or IN_PROGRESS) */}
+            {(ticket.status === 'OPEN' || ticket.status === 'IN_PROGRESS') && (
+              <div className={styles.composerCard}>
+                {sendError && (
+                  <div className={styles.composerError} role="alert">
+                    <span>⚠️</span> {sendError}
+                  </div>
+                )}
+                <form onSubmit={handleSendMessage} className={styles.composerForm}>
+                  <div className={styles.composerBox}>
+                    <textarea
+                      className={styles.composerTextarea}
+                      placeholder="Type your message..."
+                      rows={1}
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      disabled={sendingMessage}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          if (replyText.trim() && !sendingMessage) {
+                            handleSendMessage(e);
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      className={styles.sendIconBtn}
+                      disabled={sendingMessage || !replyText.trim()}
+                      title="Send message"
+                      aria-label="Send message"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={styles.sendIcon}
+                      >
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                      </svg>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* Resolved Status Notice */}
+            {ticket.status === 'RESOLVED' && (
+              <div className={`${styles.statusNoticeCard} ${styles.resolvedNotice}`}>
+                <h4 className={styles.statusNoticeTitle}>✓ Ticket is Marked as Resolved</h4>
+                <p className={styles.statusNoticeDesc}>
+                  This issue has been resolved. If your problem persists, use the Reopen button at the top to continue chatting with support.
+                </p>
+              </div>
+            )}
+
+            {/* Closed Status Notice */}
+            {ticket.status === 'CLOSED' && (
+              <div className={`${styles.statusNoticeCard} ${styles.closedNotice}`}>
+                <h4 className={styles.statusNoticeTitle}>✕ Ticket Closed</h4>
+                <p className={styles.statusNoticeDesc}>
+                  This ticket is closed. No further replies can be sent. Please open a new ticket if you need further assistance.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

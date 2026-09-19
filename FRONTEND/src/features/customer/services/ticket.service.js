@@ -71,6 +71,18 @@ export async function sendTicketMessage(ticketId, body) {
   return api.post(`/tickets/${ticketId}/messages`, { body });
 }
 
+/**
+ * Reopen a RESOLVED ticket back to IN_PROGRESS.
+ * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @returns {Promise<{ success: boolean, message: string, data: { ticket: Object } }>}
+ */
+export async function reopenTicket(ticketId) {
+  if (!ticketId) {
+    throw new Error('Ticket ID parameter is required.');
+  }
+  return api.patch(`/tickets/${ticketId}/reopen`);
+}
+
 export default {
   getCategories,
   createTicket,
@@ -78,6 +90,7 @@ export default {
   getTicketById,
   getTicketMessages,
   sendTicketMessage,
+  reopenTicket,
 };
 
 

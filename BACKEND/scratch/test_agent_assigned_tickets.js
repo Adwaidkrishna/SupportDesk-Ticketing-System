@@ -146,7 +146,7 @@ async function runAssignedTicketsTests() {
       categoryId: cat._id,
       subject: 'Agent B Exclusive Ticket',
       description: 'Ticket assigned strictly to Agent B',
-      status: 'OPEN',
+      status: 'IN_PROGRESS',
       priority: 'HIGH',
       assignedTo: agentB._id,
     });
