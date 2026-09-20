@@ -1,16 +1,19 @@
-import createTicket from './createTicket.controller.js';
-import getMyTickets from './getMyTickets.controller.js';
-import getTicketDetails from './getTicketDetails.controller.js';
-import getTicketMessages from './getTicketMessages.controller.js';
-import getAgentQueue from './getAgentQueue.controller.js';
-import getAgentTicketDetails from './getAgentTicketDetails.controller.js';
-import claimTicket from './claimTicket.controller.js';
-import sendCustomerMessage from './sendCustomerMessage.controller.js';
-import sendAgentMessage from './sendAgentMessage.controller.js';
-import getAgentTicketMessages from './getAgentTicketMessages.controller.js';
-import getAgentAssignedTickets from './getAgentAssignedTickets.controller.js';
-import updateAgentTicketStatus from './updateAgentTicketStatus.controller.js';
-import reopenTicket from './reopenTicket.controller.js';
+// Customer controllers
+import createTicket from './customer/createTicket.controller.js';
+import getMyTickets from './customer/getMyTickets.controller.js';
+import getTicketDetails from './customer/getTicketDetails.controller.js';
+import getTicketMessages from './customer/getTicketMessages.controller.js';
+import sendCustomerMessage from './customer/sendCustomerMessage.controller.js';
+import reopenTicket from './customer/reopenTicket.controller.js';
+
+// Agent controllers
+import getAgentQueue from './agent/getAgentQueue.controller.js';
+import getAgentTicketDetails from './agent/getAgentTicketDetails.controller.js';
+import claimTicket from './agent/claimTicket.controller.js';
+import sendAgentMessage from './agent/sendAgentMessage.controller.js';
+import getAgentTicketMessages from './agent/getAgentTicketMessages.controller.js';
+import getAgentAssignedTickets from './agent/getAgentAssignedTickets.controller.js';
+import updateAgentTicketStatus from './agent/updateAgentTicketStatus.controller.js';
 
 export {
   createTicket,
@@ -43,7 +46,3 @@ export default {
   updateAgentTicketStatus,
   reopenTicket,
 };
-
-
-
-

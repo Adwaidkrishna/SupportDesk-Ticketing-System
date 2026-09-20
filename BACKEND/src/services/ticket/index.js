@@ -1,16 +1,18 @@
-import { createTicket, generateTicketNumber } from './createTicket.service.js';
-import { getMyTickets } from './getMyTickets.service.js';
-import { getTicketByIdForCustomer } from './getTicketDetails.service.js';
-import { getTicketMessages } from './getTicketMessages.service.js';
-import { getAgentQueue } from './getAgentQueue.service.js';
-import { getAgentTicketDetails } from './getAgentTicketDetails.service.js';
-import { claimTicket } from './claimTicket.service.js';
-import { sendCustomerMessage } from './sendCustomerMessage.service.js';
-import { sendAgentMessage } from './sendAgentMessage.service.js';
-import { getAgentTicketMessages } from './getAgentTicketMessages.service.js';
-import { getAgentAssignedTickets } from './getAgentAssignedTickets.service.js';
-import { updateAgentTicketStatus } from './updateAgentTicketStatus.service.js';
-import { reopenTicket } from './reopenTicket.service.js';
+import { createTicket, generateTicketNumber } from './customer/createTicket.service.js';
+import { getMyTickets } from './customer/getMyTickets.service.js';
+import { getTicketByIdForCustomer } from './customer/getTicketDetails.service.js';
+import { getTicketMessages } from './customer/getTicketMessages.service.js';
+import { sendCustomerMessage } from './customer/sendCustomerMessage.service.js';
+
+import { getAgentQueue } from './agent/getAgentQueue.service.js';
+import { getAgentTicketDetails } from './agent/getAgentTicketDetails.service.js';
+import { claimTicket } from './agent/claimTicket.service.js';
+import { sendAgentMessage } from './agent/sendAgentMessage.service.js';
+import { getAgentTicketMessages } from './agent/getAgentTicketMessages.service.js';
+import { getAgentAssignedTickets } from './agent/getAgentAssignedTickets.service.js';
+import { updateAgentTicketStatus } from './agent/updateAgentTicketStatus.service.js';
+
+import { reopenTicket } from './shared/reopenTicket.service.js';
 
 export {
   createTicket,
@@ -45,7 +47,3 @@ export default {
   updateAgentTicketStatus,
   reopenTicket,
 };
-
-
-
-

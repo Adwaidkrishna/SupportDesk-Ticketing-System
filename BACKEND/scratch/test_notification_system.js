@@ -12,7 +12,7 @@ import Notification from '../src/models/Notification.js';
 import TicketMessage from '../src/models/TicketMessage.js';
 import { generateToken } from '../src/utils/jwt.util.js';
 import { hashPassword } from '../src/utils/hash.util.js';
-import * as notifService from '../src/services/notification.service.js';
+import * as notifService from '../src/services/notification/index.js';
 import ticketService from '../src/services/ticket/index.js';
 
 const TEST_PORT = 5099;
