@@ -1,5 +1,6 @@
 import Ticket from '../../models/Ticket.js';
 import Category from '../../models/Category.js';
+import { createNotification, notifyRole } from '../notification.service.js';
 
 /**
  * Generate sequential unique ticket number like TKT-000001
@@ -42,6 +43,35 @@ export const createTicket = async ({ customerId, subject, description, categoryI
     priority: priority || 'MEDIUM',
     status: 'OPEN', // Backend unconditionally enforces initial status OPEN
   });
+
+  // Real-time notifications: notify customer + relevant agents/admins
+  createNotification({
+    recipient: customerId,
+    type: 'ticket_created',
+    title: `Ticket #${newTicket.ticketNumber} Created`,
+    message: `Your ticket "${newTicket.subject}" has been successfully created and is waiting for review.`,
+    ticketId: newTicket._id,
+    ticketNumber: newTicket.ticketNumber,
+    targetRoute: `/customer/tickets/${newTicket.ticketNumber}`,
+  }).catch((err) => console.warn('[Notification] Failed to notify customer on ticket creation:', err.message));
+
+  notifyRole('agent', {
+    type: 'ticket_created',
+    title: `New Ticket #${newTicket.ticketNumber}`,
+    message: `New ticket created: "${newTicket.subject}"`,
+    ticketId: newTicket._id,
+    ticketNumber: newTicket.ticketNumber,
+    targetRoute: `/agent/tickets/${newTicket.ticketNumber}`,
+  }).catch((err) => console.warn('[Notification] Failed to notify agents on ticket creation:', err.message));
+
+  notifyRole('admin', {
+    type: 'ticket_created',
+    title: `New Ticket #${newTicket.ticketNumber}`,
+    message: `New ticket created: "${newTicket.subject}"`,
+    ticketId: newTicket._id,
+    ticketNumber: newTicket.ticketNumber,
+    targetRoute: `/admin/tickets/${newTicket.ticketNumber}`,
+  }).catch((err) => console.warn('[Notification] Failed to notify admins on ticket creation:', err.message));
 
   return {
     ticket: {

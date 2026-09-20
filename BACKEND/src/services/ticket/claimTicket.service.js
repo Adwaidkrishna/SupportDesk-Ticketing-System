@@ -1,4 +1,5 @@
 import Ticket from '../../models/Ticket.js';
+import { createNotification } from '../notification.service.js';
 
 /**
  * Service to atomically claim an unassigned OPEN ticket by an authorized agent.
@@ -107,6 +108,22 @@ export const claimTicket = async (ticketId, agentId) => {
     createdAt: updatedTicket.createdAt,
     updatedAt: updatedTicket.updatedAt,
   };
+
+  // Real-time notification: notify customer that agent claimed the ticket
+  const agentName = assignedTo?.name || 'An agent';
+  const customerRecipientId = updatedTicket.customerId?._id || updatedTicket.customerId;
+  if (customerRecipientId) {
+    createNotification({
+      recipient: customerRecipientId,
+      sender: agentId,
+      type: 'ticket_assigned',
+      title: `Ticket #${updatedTicket.ticketNumber} Claimed`,
+      message: `${agentName} has claimed your ticket "${updatedTicket.subject}".`,
+      ticketId: updatedTicket._id,
+      ticketNumber: updatedTicket.ticketNumber,
+      targetRoute: `/customer/tickets/${updatedTicket.ticketNumber}`,
+    }).catch((err) => console.warn('[Notification] Failed to notify customer on claim:', err.message));
+  }
 
   return {
     ...ticketData,

@@ -1,6 +1,7 @@
 import Ticket from '../../models/Ticket.js';
 import TicketMessage from '../../models/TicketMessage.js';
 import { getIO } from '../../socket/socket.js';
+import { createNotification, notifyRole } from '../notification.service.js';
 
 /**
  * Service to send a message on a ticket by its customer owner.
@@ -75,6 +76,35 @@ export const sendCustomerMessage = async (ticketId, customerId, body) => {
   } catch (socketErr) {
     // Non-blocking in case of isolated testing environments without active Socket.IO
     console.warn('[Socket] Real-time message broadcast skipped:', socketErr.message);
+  }
+
+  // 5. Real-time notification: notify assigned agent, or agent queue if unassigned
+  const customerName = message.senderId?.name || 'Customer';
+  const bodySnippet = message.body.length > 80 ? message.body.substring(0, 77) + '...' : message.body;
+
+  if (ticket.assignedTo) {
+    // Notify the assigned agent ONLY — do NOT broadcast to all agents
+    createNotification({
+      recipient: ticket.assignedTo,
+      sender: customerId,
+      type: 'ticket_reply',
+      title: `${customerName} replied to #${ticket.ticketNumber}`,
+      message: bodySnippet,
+      ticketId: ticket._id,
+      ticketNumber: ticket.ticketNumber,
+      targetRoute: `/agent/tickets/${ticket.ticketNumber}`,
+    }).catch((err) => console.warn('[Notification] Failed to notify assigned agent on customer reply:', err.message));
+  } else {
+    // Unassigned ticket: notify the agent queue
+    notifyRole('agent', {
+      sender: customerId,
+      type: 'ticket_reply',
+      title: `New reply on unassigned ticket #${ticket.ticketNumber}`,
+      message: `${customerName}: ${bodySnippet}`,
+      ticketId: ticket._id,
+      ticketNumber: ticket.ticketNumber,
+      targetRoute: `/agent/tickets/${ticket.ticketNumber}`,
+    }).catch((err) => console.warn('[Notification] Failed to notify agent queue on customer reply:', err.message));
   }
 
   return responseMessage;

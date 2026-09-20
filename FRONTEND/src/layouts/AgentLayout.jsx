@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/context/AuthContext';
+import { useNotifications } from '../features/notifications/context/NotificationContext';
+import NotificationDropdown from '../features/notifications/components/NotificationDropdown';
 import { currentAgent } from '../features/agent/agentMockData';
 import Select from '../components/common/Select';
 import styles from './AgentLayout.module.css';
@@ -14,8 +16,10 @@ export default function AgentLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const [availability, setAvailability] = useState(currentAgent.availability);
 
   const activePath = location.pathname;
@@ -49,7 +53,7 @@ export default function AgentLayout() {
       label: 'Notifications',
       path: '/agent/notifications',
       icon: 'bell',
-      badge: currentAgent.unreadNotificationsCount,
+      badge: unreadCount,
     },
   ];
 
@@ -256,18 +260,24 @@ export default function AgentLayout() {
 
           {/* Topbar Right */}
           <div className={styles.topbarRight}>
-            <button
-              type="button"
-              className={styles.iconButton}
-              title="Agent Notifications"
-              onClick={() => navigate('/agent/notifications')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              <span className={styles.notifBadge}>{currentAgent.unreadNotificationsCount}</span>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className={styles.iconButton}
+                title="Agent Notifications"
+                onClick={() => setNotifDropdownOpen((prev) => !prev)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {unreadCount > 0 && <span className={styles.notifBadge}>{unreadCount}</span>}
+              </button>
+              <NotificationDropdown
+                isOpen={notifDropdownOpen}
+                onClose={() => setNotifDropdownOpen(false)}
+              />
+            </div>
 
             <div
               className={styles.profileBadge}
@@ -275,8 +285,8 @@ export default function AgentLayout() {
             >
               <div className={styles.badgeAvatar}>{currentAgent.initials}</div>
               <div className={styles.badgeInfo}>
-                <span className={styles.badgeName}>{currentAgent.name}</span>
-                <span className={styles.badgeRole}>{currentAgent.role}</span>
+                <span className={styles.badgeName}>{displayName}</span>
+                <span className={styles.badgeRole}>{displayRole}</span>
               </div>
               <svg className={styles.chevronIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
@@ -313,9 +323,9 @@ export default function AgentLayout() {
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              {currentAgent.unreadNotificationsCount > 0 && (
+              {unreadCount > 0 && (
                 <span className={styles.mobileNotifBadge}>
-                  {currentAgent.unreadNotificationsCount}
+                  {unreadCount}
                 </span>
               )}
             </button>
@@ -424,7 +434,7 @@ export default function AgentLayout() {
                 }}
               >
                 <span className={styles.moreIcon}>{renderIcon('bell')}</span>
-                <span>Notifications ({currentAgent.unreadNotificationsCount})</span>
+                <span>Notifications ({unreadCount})</span>
               </button>
 
               <button

@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.routes.js';
 import categoryRoutes from './routes/category.routes.js';
 import ticketRoutes from './routes/ticket.routes.js';
 import agentRoutes from './routes/agent.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 
 
 const app = express();
@@ -57,6 +58,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/agent', agentRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import Ticket from '../../models/Ticket.js';
 import TicketMessage from '../../models/TicketMessage.js';
 import { getIO } from '../../socket/socket.js';
+import { createNotification } from '../notification.service.js';
 
 /**
  * Service to send a reply message on an assigned ticket by the assigned agent.
@@ -82,6 +83,23 @@ export const sendAgentMessage = async (ticketId, agentId, body) => {
   } catch (socketErr) {
     // Non-blocking in case of isolated testing environments without active Socket.IO
     console.warn('[Socket] Real-time message broadcast skipped:', socketErr.message);
+  }
+
+  // 6. Real-time notification: notify the customer
+  const agentName = message.senderId?.name || 'Agent';
+  const bodySnippet = message.body.length > 80 ? message.body.substring(0, 77) + '...' : message.body;
+  const customerRecipientId = ticket.customerId?._id || ticket.customerId;
+  if (customerRecipientId) {
+    createNotification({
+      recipient: customerRecipientId,
+      sender: agentId,
+      type: 'ticket_reply',
+      title: `${agentName} replied to #${ticket.ticketNumber}`,
+      message: bodySnippet,
+      ticketId: ticket._id,
+      ticketNumber: ticket.ticketNumber,
+      targetRoute: `/customer/tickets/${ticket.ticketNumber}`,
+    }).catch((err) => console.warn('[Notification] Failed to notify customer on agent reply:', err.message));
   }
 
   return responseMessage;

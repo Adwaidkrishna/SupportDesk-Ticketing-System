@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/context/AuthContext';
+import { useNotifications } from '../features/notifications/context/NotificationContext';
+import NotificationDropdown from '../features/notifications/components/NotificationDropdown';
 import { currentUser } from '../features/customer/customerMockData';
 import styles from './CustomerLayout.module.css';
 
@@ -13,7 +15,9 @@ export default function CustomerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
   const activePath = location.pathname;
 
@@ -46,7 +50,7 @@ export default function CustomerLayout() {
       label: 'Notifications',
       path: '/customer/notifications',
       icon: 'bell',
-      badge: currentUser.unreadNotificationsCount,
+      badge: unreadCount,
     },
   ];
 
@@ -245,18 +249,24 @@ export default function CustomerLayout() {
 
           {/* Topbar Right */}
           <div className={styles.topbarRight}>
-            <button
-              type="button"
-              className={styles.iconButton}
-              title="Notifications"
-              onClick={() => navigate('/customer/notifications')}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              <span className={styles.notifBadge}>{currentUser.unreadNotificationsCount}</span>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className={styles.iconButton}
+                title="Notifications"
+                onClick={() => setNotifDropdownOpen((prev) => !prev)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {unreadCount > 0 && <span className={styles.notifBadge}>{unreadCount}</span>}
+              </button>
+              <NotificationDropdown
+                isOpen={notifDropdownOpen}
+                onClose={() => setNotifDropdownOpen(false)}
+              />
+            </div>
 
             <div
               className={styles.profileBadge}
@@ -299,9 +309,9 @@ export default function CustomerLayout() {
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              {currentUser.unreadNotificationsCount > 0 && (
+              {unreadCount > 0 && (
                 <span className={styles.mobileNotifBadge}>
-                  {currentUser.unreadNotificationsCount}
+                  {unreadCount}
                 </span>
               )}
             </button>
@@ -360,7 +370,7 @@ export default function CustomerLayout() {
         >
           <div className={styles.bottomNavIconWrap}>
             {renderIcon('bell')}
-            {currentUser.unreadNotificationsCount > 0 && (
+            {unreadCount > 0 && (
               <span className={styles.bottomNavDot} />
             )}
           </div>

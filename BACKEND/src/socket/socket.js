@@ -36,6 +36,14 @@ const initializeSocket = (httpServer) => {
     console.log(`👤 User: ${socket.user.userId}`);
     console.log(`🔑 Role: ${socket.user.role}`);
 
+    // Join user-specific and role-specific rooms for real-time notifications
+    if (socket.user?.userId) {
+      socket.join(`user:${socket.user.userId}`);
+    }
+    if (socket.user?.role) {
+      socket.join(`role:${socket.user.role.toLowerCase()}`);
+    }
+
     // Join Ticket Room with Server-Side Authorization
     socket.on('join-ticket', async (data, callback) => {
       try {

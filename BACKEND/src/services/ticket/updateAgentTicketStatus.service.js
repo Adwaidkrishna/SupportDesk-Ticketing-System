@@ -1,5 +1,6 @@
 import Ticket from '../../models/Ticket.js';
 import { getIO } from '../../socket/socket.js';
+import { createNotification } from '../notification.service.js';
 
 /**
  * Service to update the status of an assigned ticket (Resolve or Close) by the assigned agent.
@@ -101,6 +102,23 @@ export const updateAgentTicketStatus = async (ticketId, agentId, status) => {
     });
   } catch (socketErr) {
     console.warn('[Socket] Real-time status update broadcast skipped:', socketErr.message);
+  }
+
+  // Real-time notification: notify the customer
+  const customerRecipientId = ticket.customerId?._id || ticket.customerId;
+  if (customerRecipientId) {
+    const statusType = status === 'RESOLVED' ? 'ticket_resolved' : 'ticket_closed';
+    const statusLabel = status === 'RESOLVED' ? 'Resolved' : 'Closed';
+    createNotification({
+      recipient: customerRecipientId,
+      sender: agentId,
+      type: statusType,
+      title: `Ticket #${ticket.ticketNumber} ${statusLabel}`,
+      message: `Your ticket "${ticket.subject}" has been marked as ${statusLabel.toLowerCase()}.`,
+      ticketId: ticket._id,
+      ticketNumber: ticket.ticketNumber,
+      targetRoute: `/customer/tickets/${ticket.ticketNumber}`,
+    }).catch((err) => console.warn('[Notification] Failed to notify customer on status update:', err.message));
   }
 
   return responseTicket;

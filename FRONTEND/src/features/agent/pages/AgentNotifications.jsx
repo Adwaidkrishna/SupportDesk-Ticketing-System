@@ -1,39 +1,60 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { agentNotificationsList } from '../agentMockData';
+import { useNotifications } from '../../notifications/context/NotificationContext';
 import styles from './AgentNotifications.module.css';
+
+function formatTime(createdAt, fallbackTime) {
+  if (!createdAt && fallbackTime) return fallbackTime;
+  if (!createdAt) return '';
+  const date = new Date(createdAt);
+  const now = new Date();
+  const diffSec = Math.floor((now - date) / 1000);
+  if (diffSec < 60) return 'Just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
 
 export default function AgentNotifications() {
   const navigate = useNavigate();
-
-  const [notifications, setNotifications] = useState(agentNotificationsList);
+  const { notifications, markAsRead, markAllAsRead } = useNotifications();
   const [filter, setFilter] = useState('all');
 
   const handleMarkAllAsRead = () => {
-    setNotifications((prev) => prev.map((item) => ({ ...item, unread: false })));
+    markAllAsRead();
   };
 
   const handleToggleRead = (id, e) => {
     e.stopPropagation();
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, unread: !item.unread } : item))
-    );
+    markAsRead(id);
   };
 
   const handleItemClick = (notif) => {
-    setNotifications((prev) =>
-      prev.map((item) => (item.id === notif.id ? { ...item, unread: false } : item))
-    );
-    navigate(notif.targetRoute);
+    const id = notif.id || notif._id;
+    const isUnread = !notif.read && notif.unread !== false;
+    if (isUnread && id) {
+      markAsRead(id);
+    }
+    if (notif.targetRoute) {
+      navigate(notif.targetRoute);
+    }
   };
 
+  const unreadCount = notifications.filter((n) => !n.read && n.unread !== false).length;
+
   const filtered = notifications.filter((n) => {
-    if (filter === 'unread') return n.unread;
+    const isUnread = !n.read && n.unread !== false;
+    if (filter === 'unread') return isUnread;
     return true;
   });
 
   const renderTypeIcon = (type) => {
     switch (type) {
+      case 'ticket_assigned':
       case 'assignment':
         return (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -42,6 +63,7 @@ export default function AgentNotifications() {
             <polyline points="17 11 19 13 23 9" />
           </svg>
         );
+      case 'ticket_reply':
       case 'reply':
         return (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -62,6 +84,7 @@ export default function AgentNotifications() {
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
           </svg>
         );
+      case 'ticket_resolved':
       case 'resolution':
       default:
         return (
@@ -85,13 +108,15 @@ export default function AgentNotifications() {
           </p>
         </div>
 
-        <button
-          type="button"
-          className={styles.markAllBtn}
-          onClick={handleMarkAllAsRead}
-        >
-          Mark all as read
-        </button>
+        {unreadCount > 0 && (
+          <button
+            type="button"
+            className={styles.markAllBtn}
+            onClick={handleMarkAllAsRead}
+          >
+            Mark all as read
+          </button>
+        )}
       </div>
 
       {/* Filter Tabs */}
@@ -108,7 +133,7 @@ export default function AgentNotifications() {
           className={`${styles.tabBtn} ${filter === 'unread' ? styles.activeTab : ''}`}
           onClick={() => setFilter('unread')}
         >
-          Unread ({notifications.filter((n) => n.unread).length})
+          Unread ({unreadCount})
         </button>
       </div>
 
@@ -126,44 +151,48 @@ export default function AgentNotifications() {
           </div>
         ) : (
           <div className={styles.list}>
-            {filtered.map((item) => (
-              <div
-                key={item.id}
-                className={`${styles.item} ${item.unread ? styles.unreadItem : ''}`}
-                onClick={() => handleItemClick(item)}
-              >
-                <div className={styles.leftMeta}>
-                  {item.unread && <span className={styles.unreadDot} />}
-                  <div
-                    className={`${styles.typeIcon} ${
-                      item.type === 'sla_warning' || item.type === 'escalation'
-                        ? styles.urgentIcon
-                        : ''
-                    }`}
-                  >
-                    {renderTypeIcon(item.type)}
+            {filtered.map((item) => {
+              const id = item.id || item._id;
+              const isUnread = !item.read && item.unread !== false;
+              return (
+                <div
+                  key={id}
+                  className={`${styles.item} ${isUnread ? styles.unreadItem : ''}`}
+                  onClick={() => handleItemClick(item)}
+                >
+                  <div className={styles.leftMeta}>
+                    {isUnread && <span className={styles.unreadDot} />}
+                    <div
+                      className={`${styles.typeIcon} ${
+                        item.type === 'sla_warning' || item.type === 'escalation'
+                          ? styles.urgentIcon
+                          : ''
+                      }`}
+                    >
+                      {renderTypeIcon(item.type)}
+                    </div>
+                  </div>
+
+                  <div className={styles.info}>
+                    <h4 className={styles.notifTitle}>{item.title}</h4>
+                    <p className={styles.notifSub}>{item.message || item.subtitle}</p>
+                    <span className={styles.time}>{formatTime(item.createdAt, item.time)}</span>
+                  </div>
+
+                  <div className={styles.actions}>
+                    <button
+                      type="button"
+                      className={styles.toggleReadBtn}
+                      onClick={(e) => handleToggleRead(id, e)}
+                      title={isUnread ? 'Mark as read' : 'Read'}
+                    >
+                      {isUnread ? '● Mark read' : '✓ Read'}
+                    </button>
+                    <span className={styles.chevron}>→</span>
                   </div>
                 </div>
-
-                <div className={styles.info}>
-                  <h4 className={styles.notifTitle}>{item.title}</h4>
-                  <p className={styles.notifSub}>{item.subtitle}</p>
-                  <span className={styles.time}>{item.time}</span>
-                </div>
-
-                <div className={styles.actions}>
-                  <button
-                    type="button"
-                    className={styles.toggleReadBtn}
-                    onClick={(e) => handleToggleRead(item.id, e)}
-                    title={item.unread ? 'Mark as read' : 'Mark as unread'}
-                  >
-                    {item.unread ? '● Mark read' : '○ Mark unread'}
-                  </button>
-                  <span className={styles.chevron}>→</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import Ticket from '../../models/Ticket.js';
 import { getIO } from '../../socket/socket.js';
+import { createNotification, notifyRole } from '../notification.service.js';
 
 /**
  * Service to reopen a RESOLVED ticket back to IN_PROGRESS.
@@ -120,6 +121,76 @@ export const reopenTicket = async (ticketId, userId, role) => {
     });
   } catch (socketErr) {
     console.warn('[Socket] Real-time status update broadcast skipped:', socketErr.message);
+  }
+
+  // Real-time notification: notify relevant other party
+  const callerRole = (role || '').toLowerCase();
+  const callerIdStr = userId.toString();
+
+  if (callerRole === 'customer') {
+    if (ticket.assignedTo) {
+      createNotification({
+        recipient: ticket.assignedTo._id || ticket.assignedTo,
+        sender: userId,
+        type: 'ticket_reopened',
+        title: `Ticket #${ticket.ticketNumber} Reopened`,
+        message: `Customer reopened ticket "${ticket.subject}".`,
+        ticketId: ticket._id,
+        ticketNumber: ticket.ticketNumber,
+        targetRoute: `/agent/tickets/${ticket.ticketNumber}`,
+      }).catch((err) => console.warn('[Notification] Failed to notify agent on reopen:', err.message));
+    } else {
+      notifyRole('agent', {
+        sender: userId,
+        type: 'ticket_reopened',
+        title: `Ticket #${ticket.ticketNumber} Reopened`,
+        message: `Customer reopened unassigned ticket "${ticket.subject}".`,
+        ticketId: ticket._id,
+        ticketNumber: ticket.ticketNumber,
+        targetRoute: `/agent/tickets/${ticket.ticketNumber}`,
+      }).catch((err) => console.warn('[Notification] Failed to notify agents on reopen:', err.message));
+    }
+  } else if (callerRole === 'agent') {
+    const customerRecipientId = ticket.customerId?._id || ticket.customerId;
+    if (customerRecipientId) {
+      createNotification({
+        recipient: customerRecipientId,
+        sender: userId,
+        type: 'ticket_reopened',
+        title: `Ticket #${ticket.ticketNumber} Reopened`,
+        message: `Agent reopened your ticket "${ticket.subject}".`,
+        ticketId: ticket._id,
+        ticketNumber: ticket.ticketNumber,
+        targetRoute: `/customer/tickets/${ticket.ticketNumber}`,
+      }).catch((err) => console.warn('[Notification] Failed to notify customer on reopen:', err.message));
+    }
+  } else if (callerRole === 'admin') {
+    const customerRecipientId = ticket.customerId?._id || ticket.customerId;
+    if (customerRecipientId) {
+      createNotification({
+        recipient: customerRecipientId,
+        sender: userId,
+        type: 'ticket_reopened',
+        title: `Ticket #${ticket.ticketNumber} Reopened`,
+        message: `Admin reopened your ticket "${ticket.subject}".`,
+        ticketId: ticket._id,
+        ticketNumber: ticket.ticketNumber,
+        targetRoute: `/customer/tickets/${ticket.ticketNumber}`,
+      }).catch((err) => console.warn('[Notification] Failed to notify customer on admin reopen:', err.message));
+    }
+    const assignedAgentId = ticket.assignedTo?._id || ticket.assignedTo;
+    if (assignedAgentId && assignedAgentId.toString() !== callerIdStr) {
+      createNotification({
+        recipient: assignedAgentId,
+        sender: userId,
+        type: 'ticket_reopened',
+        title: `Ticket #${ticket.ticketNumber} Reopened`,
+        message: `Admin reopened ticket "${ticket.subject}".`,
+        ticketId: ticket._id,
+        ticketNumber: ticket.ticketNumber,
+        targetRoute: `/agent/tickets/${ticket.ticketNumber}`,
+      }).catch((err) => console.warn('[Notification] Failed to notify agent on admin reopen:', err.message));
+    }
   }
 
   return responseTicket;

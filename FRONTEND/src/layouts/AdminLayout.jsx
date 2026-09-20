@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/context/AuthContext';
+import { useNotifications } from '../features/notifications/context/NotificationContext';
+import NotificationDropdown from '../features/notifications/components/NotificationDropdown';
 import { currentAdmin } from '../features/admin/adminMockData';
 import styles from './AdminLayout.module.css';
 
@@ -13,8 +15,10 @@ export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { unreadCount } = useNotifications();
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const activePath = location.pathname;
 
   const handleLogout = () => {
@@ -234,15 +238,21 @@ export default function AdminLayout() {
 
           {/* Topbar Right */}
           <div className={styles.topbarRight}>
-            <button
-              type="button"
-              className={styles.iconButton}
-              title="System Alerts"
-              onClick={() => navigate('/admin/reports')}
-            >
-              {renderIcon('bell')}
-              <span className={styles.notifBadge}>{currentAdmin.unreadNotificationsCount}</span>
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className={styles.iconButton}
+                title="Notifications"
+                onClick={() => setNotifDropdownOpen((prev) => !prev)}
+              >
+                {renderIcon('bell')}
+                {unreadCount > 0 && <span className={styles.notifBadge}>{unreadCount}</span>}
+              </button>
+              <NotificationDropdown
+                isOpen={notifDropdownOpen}
+                onClose={() => setNotifDropdownOpen(false)}
+              />
+            </div>
 
             <div
               className={styles.profileBadge}
