@@ -1,78 +1,160 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  currentAgent,
-  agentDashboardKPIs,
-  myQueueTickets,
-  slaOverviewStats,
-  needsAttentionList,
-  workloadChartData,
-  agentRecentActivity,
-} from '../agentMockData';
+import { useAuth } from '../../auth/context/AuthContext';
+import { getAgentDashboard } from '../services/agentDashboard.service';
 import styles from './AgentDashboard.module.css';
 
+/**
+ * Agent Dashboard connected to live backend API:
+ * GET /api/v1/dashboard/agent
+ */
 export default function AgentDashboard() {
   const navigate = useNavigate();
-  const [internalNoteModalOpen, setInternalNoteModalOpen] = useState(false);
-  const [noteText, setNoteText] = useState('');
-  const [targetTicket, setTargetTicket] = useState('#1024');
+  const { user } = useAuth();
 
-  const handleSaveInternalNote = (e) => {
-    e.preventDefault();
-    if (!noteText.trim()) return;
-    alert(`Internal note added to ${targetTicket} successfully!`);
-    setNoteText('');
-    setInternalNoteModalOpen(false);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const fetchDashboard = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await getAgentDashboard();
+      if (response?.success && response?.data) {
+        setDashboardData(response.data);
+      } else {
+        setError('Received an unexpected response from the server.');
+      }
+    } catch (err) {
+      console.error('Failed to load agent dashboard:', err);
+      setError(
+        err.message || 'Unable to connect to the server. Please check your connection and try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch dashboard data on mount and whenever authenticated user identity changes
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadData() {
+      try {
+        setError('');
+        const response = await getAgentDashboard();
+        if (isMounted) {
+          if (response?.success && response?.data) {
+            setDashboardData(response.data);
+          } else {
+            setError('Received an unexpected response from the server.');
+          }
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Failed to load agent dashboard:', err);
+          setError(
+            err.message || 'Unable to connect to the server. Please check your connection and try again.'
+          );
+          setLoading(false);
+        }
+      }
+    }
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, user?._id]);
+
+  const displayName = user?.name ? user.name.split(' ')[0] : 'Agent';
+  const currentDateFormatted = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  const stats = dashboardData?.stats || {
+    availableTickets: 0,
+    myActiveTickets: 0,
+    myHighUrgentTickets: 0,
+    myResolvedTickets: 0,
+    myClosedTickets: 0,
   };
 
-  const getPriorityBadgeClass = (variant) => {
-    switch (variant) {
-      case 'critical':
+  const workload = dashboardData?.workload || {
+    totalAssigned: 0,
+    activeTickets: 0,
+    highUrgentTickets: 0,
+    resolvedTickets: 0,
+    closedTickets: 0,
+  };
+
+  const recentAssignedTickets = dashboardData?.recentAssignedTickets || [];
+
+  const getPriorityBadgeClass = (priority) => {
+    switch (priority?.toUpperCase()) {
+      case 'URGENT':
+      case 'CRITICAL':
         return styles.priorityCritical;
-      case 'high':
+      case 'HIGH':
         return styles.priorityHigh;
-      case 'medium':
+      case 'MEDIUM':
         return styles.priorityMedium;
-      case 'low':
+      case 'LOW':
       default:
         return styles.priorityLow;
     }
   };
 
-  const getStatusBadgeClass = (variant) => {
-    switch (variant) {
-      case 'info':
-        return styles.statusInfo;
-      case 'warning':
-        return styles.statusWarning;
-      case 'open':
+  const getStatusBadgeClass = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'OPEN':
         return styles.statusOpen;
+      case 'IN_PROGRESS':
+        return styles.statusInfo;
+      case 'RESOLVED':
+        return styles.statusOpen;
+      case 'CLOSED':
       default:
         return styles.statusMuted;
     }
   };
 
+  const formatTicketDate = (dateStr) => {
+    if (!dateStr) return '—';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   const renderKPIIcon = (icon) => {
     switch (icon) {
+      case 'inbox':
+        return (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+          </svg>
+        );
       case 'user-check':
         return (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
             <circle cx="8.5" cy="7" r="4" />
             <polyline points="17 11 19 13 23 9" />
-          </svg>
-        );
-      case 'clock':
-        return (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        );
-      case 'hourglass':
-        return (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
           </svg>
         );
       case 'alert-triangle':
@@ -83,12 +165,12 @@ export default function AgentDashboard() {
             <line x1="12" y1="17" x2="12.01" y2="17" />
           </svg>
         );
-      case 'x-circle':
+      case 'archive':
         return (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="15" y1="9" x2="9" y2="15" />
-            <line x1="9" y1="9" x2="15" y2="15" />
+            <polyline points="21 8 21 21 3 21 3 8" />
+            <rect x="1" y="3" width="22" height="5" />
+            <line x1="10" y1="12" x2="14" y2="12" />
           </svg>
         );
       case 'check-circle':
@@ -102,20 +184,71 @@ export default function AgentDashboard() {
     }
   };
 
+  const kpiCards = [
+    {
+      id: 'stat-available',
+      label: 'Available Tickets',
+      value: stats.availableTickets,
+      subtext: 'In queue to claim',
+      color: '#0A84FF',
+      bgColor: 'rgba(10, 132, 255, 0.12)',
+      icon: 'inbox',
+    },
+    {
+      id: 'stat-active',
+      label: 'My Active Tickets',
+      value: stats.myActiveTickets,
+      subtext: 'Open & in progress',
+      color: '#64D2FF',
+      bgColor: 'rgba(100, 210, 255, 0.12)',
+      icon: 'user-check',
+    },
+    {
+      id: 'stat-high-urgent',
+      label: 'High / Urgent',
+      value: stats.myHighUrgentTickets,
+      subtext: 'Active priority',
+      color: '#FF453A',
+      bgColor: 'rgba(255, 69, 58, 0.12)',
+      icon: 'alert-triangle',
+    },
+    {
+      id: 'stat-resolved',
+      label: 'My Resolved',
+      value: stats.myResolvedTickets,
+      subtext: 'Completed tickets',
+      color: '#30D158',
+      bgColor: 'rgba(48, 209, 88, 0.12)',
+      icon: 'check-circle',
+    },
+    {
+      id: 'stat-closed',
+      label: 'My Closed',
+      value: stats.myClosedTickets,
+      subtext: 'Closed tickets',
+      color: '#8E8E93',
+      bgColor: 'rgba(142, 142, 147, 0.12)',
+      icon: 'archive',
+    },
+  ];
+
+  // Workload bar helper
+  const maxWorkload = Math.max(workload.totalAssigned, 1);
+
   return (
     <div className={styles.page}>
       {/* Header Banner */}
       <div className={styles.header}>
         <div className={styles.titleGroup}>
           <span className={styles.badgeLabel}>AGENT WORKSPACE</span>
-          <h1 className={styles.title}>Good morning, {currentAgent.name.split(' ')[0]}!</h1>
-          <p className={styles.subtitle}>Here's what needs your attention today.</p>
+          <h1 className={styles.title}>Welcome back, {displayName}!</h1>
+          <p className={styles.subtitle}>Here is your live ticket overview and queue metrics.</p>
         </div>
 
         <div className={styles.headerRight}>
           <div className={styles.dateBadge}>
             <span className={styles.dateIcon}>📅</span>
-            <span>Wed, Sep 16, 2026</span>
+            <span>{currentDateFormatted}</span>
           </div>
 
           <button
@@ -123,378 +256,337 @@ export default function AgentDashboard() {
             className={styles.queueBtn}
             onClick={() => navigate('/agent/queue')}
           >
-            Go to My Queue →
+            Go to Available Queue →
           </button>
         </div>
       </div>
 
-      {/* KPI Cards Grid (6 Cards) */}
-      <div className={styles.kpiGrid}>
-        {agentDashboardKPIs.map((kpi) => (
-          <div key={kpi.id} className={styles.kpiCard}>
-            <div className={styles.kpiTop}>
-              <div
-                className={styles.kpiIconWrap}
-                style={{ backgroundColor: kpi.bgColor, color: kpi.color }}
-              >
-                {renderKPIIcon(kpi.icon)}
-              </div>
-              <span className={styles.kpiChange} style={{ color: kpi.color }}>
-                {kpi.change}
-              </span>
-            </div>
-            <div className={styles.kpiVal}>{kpi.value}</div>
-            <div className={styles.kpiLabel}>{kpi.label}</div>
+      {loading ? (
+        <div className={styles.loadingState}>
+          <div className={styles.spinner} />
+          <p className={styles.loadingText}>Loading agent dashboard metrics...</p>
+        </div>
+      ) : error ? (
+        <div className={styles.errorState}>
+          <div className={styles.errorIcon}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
           </div>
-        ))}
-      </div>
-
-      {/* Main Grid: My Queue (wide 2fr) + SLA & Needs Attention (1fr) */}
-      <div className={styles.mainGrid}>
-        {/* Left Column: My Queue Table */}
-        <div className={styles.queueCard}>
-          <div className={styles.cardHeader}>
-            <div>
-              <h2 className={styles.cardTitle}>My Queue</h2>
-              <p className={styles.cardSub}>Active tickets assigned directly to you</p>
-            </div>
-            <button
-              type="button"
-              className={styles.viewAllBtn}
-              onClick={() => navigate('/agent/queue')}
-            >
-              View all ({myQueueTickets.length}) →
-            </button>
-          </div>
-
-          {/* Desktop Table */}
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Ticket</th>
-                  <th>Subject</th>
-                  <th>Customer</th>
-                  <th>Priority</th>
-                  <th>Status</th>
-                  <th>SLA</th>
-                  <th>Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {myQueueTickets.map((t) => (
-                  <tr
-                    key={t.id}
-                    className={styles.tableRow}
-                    onClick={() => navigate(`/agent/tickets/${t.id.replace('#', '')}`)}
+          <h3 className={styles.errorTitle}>Failed to load dashboard</h3>
+          <p className={styles.errorDesc}>{error}</p>
+          <button type="button" className={styles.retryBtn} onClick={fetchDashboard}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            <span>Try Again</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* KPI Cards Grid (5 Cards) */}
+          <div className={styles.kpiGrid}>
+            {kpiCards.map((kpi) => (
+              <div key={kpi.id} className={styles.kpiCard}>
+                <div className={styles.kpiTop}>
+                  <div
+                    className={styles.kpiIconWrap}
+                    style={{ backgroundColor: kpi.bgColor, color: kpi.color }}
                   >
-                    <td className={styles.ticketIdCell}>{t.id}</td>
-                    <td className={styles.subjectCell}>{t.subject}</td>
-                    <td className={styles.customerCell}>{t.customer}</td>
-                    <td>
-                      <span
-                        className={`${styles.priorityBadge} ${getPriorityBadgeClass(
-                          t.priorityVariant
-                        )}`}
-                      >
-                        {t.priority}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`${styles.statusBadge} ${getStatusBadgeClass(
-                          t.statusVariant
-                        )}`}
-                      >
-                        {t.status}
-                      </span>
-                    </td>
-                    <td
-                      className={
-                        t.slaStatus === 'at_risk' ? styles.slaAtRisk : styles.slaNormal
-                      }
-                    >
-                      {t.sla}
-                    </td>
-                    <td className={styles.timeCell}>{t.updated}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Card List */}
-          <div className={styles.mobileQueueList}>
-            {myQueueTickets.map((t) => (
-              <div
-                key={t.id}
-                className={styles.mobileQueueCard}
-                onClick={() => navigate(`/agent/tickets/${t.id.replace('#', '')}`)}
-              >
-                <div className={styles.mobileQueueTop}>
-                  <span className={styles.ticketIdCell}>{t.id}</span>
-                  <span
-                    className={`${styles.priorityBadge} ${getPriorityBadgeClass(
-                      t.priorityVariant
-                    )}`}
-                  >
-                    {t.priority}
+                    {renderKPIIcon(kpi.icon)}
+                  </div>
+                  <span className={styles.kpiChange} style={{ color: kpi.color }}>
+                    {kpi.subtext}
                   </span>
                 </div>
-                <h4 className={styles.mobileSubject}>{t.subject}</h4>
-                <div className={styles.mobileMetaRow}>
-                  <span>👤 {t.customer}</span>
-                  <span className={t.slaStatus === 'at_risk' ? styles.slaAtRisk : ''}>
-                    ⏱ {t.sla}
-                  </span>
-                </div>
+                <div className={styles.kpiVal}>{kpi.value}</div>
+                <div className={styles.kpiLabel}>{kpi.label}</div>
               </div>
             ))}
           </div>
-        </div>
 
-        {/* Right Column: SLA Overview & Needs Your Attention */}
-        <div className={styles.rightCol}>
-          {/* SLA Overview Card */}
-          <div className={styles.slaCard}>
-            <h3 className={styles.cardTitle}>SLA Overview</h3>
-            <p className={styles.cardSub}>Total Active: {slaOverviewStats.total} Tickets</p>
-
-            <div className={styles.slaMeterArea}>
-              <div className={styles.slaBarTrack}>
-                <div
-                  className={styles.slaBarWithin}
-                  style={{
-                    width: `${(slaOverviewStats.withinSLA / slaOverviewStats.total) * 100}%`,
-                  }}
-                  title={`Within SLA: ${slaOverviewStats.withinSLA}`}
-                />
-                <div
-                  className={styles.slaBarRisk}
-                  style={{
-                    width: `${(slaOverviewStats.atRisk / slaOverviewStats.total) * 100}%`,
-                  }}
-                  title={`At Risk: ${slaOverviewStats.atRisk}`}
-                />
-                <div
-                  className={styles.slaBarBreached}
-                  style={{
-                    width: `${(slaOverviewStats.breached / slaOverviewStats.total) * 100}%`,
-                  }}
-                  title={`Breached: ${slaOverviewStats.breached}`}
-                />
-              </div>
-
-              <div className={styles.slaLegend}>
-                <div className={styles.slaLegendItem}>
-                  <span className={styles.dotGreen} />
-                  <span>Within SLA: <strong>{slaOverviewStats.withinSLA}</strong></span>
+          {/* Main Grid: Recent Assigned Tickets (2fr) + Workload & Quick Actions (1fr) */}
+          <div className={styles.mainGrid}>
+            {/* Left Column: Recent Assigned Tickets */}
+            <div className={styles.queueCard}>
+              <div className={styles.cardHeader}>
+                <div>
+                  <h2 className={styles.cardTitle}>Recent Assigned Tickets</h2>
+                  <p className={styles.cardSub}>Recently updated tickets assigned directly to you</p>
                 </div>
-                <div className={styles.slaLegendItem}>
-                  <span className={styles.dotOrange} />
-                  <span>At Risk: <strong>{slaOverviewStats.atRisk}</strong></span>
-                </div>
-                <div className={styles.slaLegendItem}>
-                  <span className={styles.dotRed} />
-                  <span>Breached: <strong>{slaOverviewStats.breached}</strong></span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Needs Your Attention Card */}
-          <div className={styles.attentionCard}>
-            <div className={styles.cardHeader}>
-              <h3 className={styles.cardTitle}>Needs Your Attention</h3>
-              <span className={styles.urgentDot}>🚨</span>
-            </div>
-
-            <div className={styles.attentionList}>
-              {needsAttentionList.map((item) => (
-                <div
-                  key={item.id}
-                  className={styles.attentionItem}
-                  onClick={() => navigate(`/agent/tickets/${item.id.replace('#', '')}`)}
-                >
-                  <div className={styles.attTop}>
-                    <span className={styles.attId}>{item.id}</span>
-                    <span className={styles.attBadge} style={{ color: item.priorityColor }}>
-                      {item.badge}
-                    </span>
-                  </div>
-                  <h4 className={styles.attSubject}>{item.subject}</h4>
-                  <span className={styles.attTime}>{item.timeRemaining}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Grid: Workload Chart (2fr) + Recent Activity & Quick Actions (1fr) */}
-      <div className={styles.bottomGrid}>
-        {/* Workload Weekly Activity Chart */}
-        <div className={styles.chartCard}>
-          <div className={styles.cardHeader}>
-            <div>
-              <h3 className={styles.cardTitle}>Weekly Activity</h3>
-              <p className={styles.cardSub}>Assigned vs Resolved workload count</p>
-            </div>
-          </div>
-
-          <div className={styles.chartContainer}>
-            {workloadChartData.days.map((day, idx) => {
-              const assignedVal = workloadChartData.assigned[idx];
-              const resolvedVal = workloadChartData.resolved[idx];
-              const maxVal = 20;
-              return (
-                <div key={day} className={styles.chartBarCol}>
-                  <div className={styles.barsGroup}>
-                    <div
-                      className={styles.barAssigned}
-                      style={{ height: `${(assignedVal / maxVal) * 100}%` }}
-                      title={`Assigned: ${assignedVal}`}
-                    />
-                    <div
-                      className={styles.barResolved}
-                      style={{ height: `${(resolvedVal / maxVal) * 100}%` }}
-                      title={`Resolved: ${resolvedVal}`}
-                    />
-                  </div>
-                  <span className={styles.dayLabel}>{day}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className={styles.chartLegend}>
-            <div className={styles.legendEntry}>
-              <span className={styles.blueBox} />
-              <span>Assigned</span>
-            </div>
-            <div className={styles.legendEntry}>
-              <span className={styles.greenBox} />
-              <span>Resolved</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity & Quick Actions */}
-        <div className={styles.sideFeedCol}>
-          {/* Quick Actions */}
-          <div className={styles.quickActionsCard}>
-            <h3 className={styles.cardTitle}>Quick Actions</h3>
-            <div className={styles.quickGrid}>
-              <button
-                type="button"
-                className={styles.quickBtn}
-                onClick={() => navigate('/agent/queue')}
-              >
-                <span>📥 View My Queue</span>
-              </button>
-              <button
-                type="button"
-                className={styles.quickBtn}
-                onClick={() => navigate('/agent/escalated')}
-              >
-                <span>🚨 View Escalated</span>
-              </button>
-              <button
-                type="button"
-                className={styles.quickBtn}
-                onClick={() => navigate('/agent/tickets')}
-              >
-                <span>🔍 Search Tickets</span>
-              </button>
-              <button
-                type="button"
-                className={styles.quickBtn}
-                onClick={() => setInternalNoteModalOpen(true)}
-              >
-                <span>📝 Add Internal Note</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Recent Activity Feed */}
-          <div className={styles.activityFeedCard}>
-            <h3 className={styles.cardTitle}>Recent Activity</h3>
-            <div className={styles.feedList}>
-              {agentRecentActivity.map((act) => (
-                <div key={act.id} className={styles.feedItem}>
-                  <div className={styles.feedBullet} />
-                  <div className={styles.feedContent}>
-                    <p className={styles.feedText}>{act.text}</p>
-                    <span className={styles.feedTime}>{act.time}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Internal Note Modal */}
-      {internalNoteModalOpen && (
-        <div
-          className={styles.modalBackdrop}
-          onClick={() => setInternalNoteModalOpen(false)}
-        >
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Create Internal Note</h3>
-              <button
-                type="button"
-                className={styles.closeModalBtn}
-                onClick={() => setInternalNoteModalOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveInternalNote} className={styles.modalForm}>
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Target Ticket Number</label>
-                <select
-                  className={styles.selectInput}
-                  value={targetTicket}
-                  onChange={(e) => setTargetTicket(e.target.value)}
-                >
-                  {myQueueTickets.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.id} - {t.subject}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.fieldLabel}>Internal Note Content</label>
-                <textarea
-                  className={styles.textareaInput}
-                  placeholder="Enter confidential agent notes, investigation details, or logs (visible only to internal support staff)..."
-                  rows={4}
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className={styles.modalActions}>
                 <button
                   type="button"
-                  className={styles.cancelBtn}
-                  onClick={() => setInternalNoteModalOpen(false)}
+                  className={styles.viewAllBtn}
+                  onClick={() => navigate('/agent/my-tickets')}
                 >
-                  Cancel
-                </button>
-                <button type="submit" className={styles.submitBtn}>
-                  Save Internal Note
+                  View all ({workload.totalAssigned}) →
                 </button>
               </div>
-            </form>
+
+              {recentAssignedTickets.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <span className={styles.emptyIcon}>📂</span>
+                  <h4 className={styles.emptyTitle}>No Assigned Tickets</h4>
+                  <p className={styles.emptyDesc}>
+                    You currently have no tickets assigned to you. Claim tickets from the available queue to get started.
+                  </p>
+                  <button
+                    type="button"
+                    className={styles.browseQueueBtn}
+                    onClick={() => navigate('/agent/queue')}
+                  >
+                    Browse Available Queue →
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Desktop Table */}
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                      <thead>
+                        <tr>
+                          <th>Ticket</th>
+                          <th>Subject</th>
+                          <th>Customer</th>
+                          <th>Category</th>
+                          <th>Priority</th>
+                          <th>Status</th>
+                          <th>Updated</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {recentAssignedTickets.map((t) => (
+                          <tr
+                            key={t._id || t.id}
+                            className={styles.tableRow}
+                            onClick={() => navigate(`/agent/tickets/${t._id || t.id}`)}
+                          >
+                            <td className={styles.ticketIdCell}>
+                              {t.ticketNumber || `#${(t._id || t.id).slice(-6)}`}
+                            </td>
+                            <td className={styles.subjectCell}>{t.subject}</td>
+                            <td className={styles.customerCell}>
+                              {t.customer?.name || t.customerEmail || 'Customer'}
+                            </td>
+                            <td className={styles.customerCell}>
+                              {t.category?.name || 'General'}
+                            </td>
+                            <td>
+                              <span
+                                className={`${styles.priorityBadge} ${getPriorityBadgeClass(
+                                  t.priority
+                                )}`}
+                              >
+                                {t.priority}
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                className={`${styles.statusBadge} ${getStatusBadgeClass(
+                                  t.status
+                                )}`}
+                              >
+                                {t.status}
+                              </span>
+                            </td>
+                            <td className={styles.timeCell}>
+                              {formatTicketDate(t.updatedAt || t.createdAt)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile List */}
+                  <div className={styles.mobileQueueList}>
+                    {recentAssignedTickets.map((t) => (
+                      <div
+                        key={t._id || t.id}
+                        className={styles.mobileQueueCard}
+                        onClick={() => navigate(`/agent/tickets/${t._id || t.id}`)}
+                      >
+                        <div className={styles.mobileQueueTop}>
+                          <span className={styles.ticketIdCell}>
+                            {t.ticketNumber || `#${(t._id || t.id).slice(-6)}`}
+                          </span>
+                          <span
+                            className={`${styles.priorityBadge} ${getPriorityBadgeClass(
+                              t.priority
+                            )}`}
+                          >
+                            {t.priority}
+                          </span>
+                        </div>
+                        <h4 className={styles.mobileSubject}>{t.subject}</h4>
+                        <div className={styles.mobileMetaRow}>
+                          <span>👤 {t.customer?.name || 'Customer'}</span>
+                          <span
+                            className={`${styles.statusBadge} ${getStatusBadgeClass(
+                              t.status
+                            )}`}
+                          >
+                            {t.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Right Column: Workload & Quick Actions */}
+            <div className={styles.rightCol}>
+              {/* Workload Card */}
+              <div className={styles.workloadCard}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <h3 className={styles.cardTitle}>Workload Breakdown</h3>
+                    <p className={styles.cardSub}>Active and completed ticket distribution</p>
+                  </div>
+                </div>
+
+                <div className={styles.workloadList}>
+                  <div className={styles.workloadItem}>
+                    <div className={styles.workloadRow}>
+                      <span className={styles.workloadLabel}>
+                        <span style={{ color: '#0A84FF' }}>●</span> Total Assigned
+                      </span>
+                      <span className={styles.workloadVal}>{workload.totalAssigned}</span>
+                    </div>
+                    <div className={styles.workloadBarTrack}>
+                      <div
+                        className={styles.workloadBarFill}
+                        style={{
+                          width: `${workload.totalAssigned > 0 ? 100 : 0}%`,
+                          backgroundColor: '#0A84FF',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.workloadItem}>
+                    <div className={styles.workloadRow}>
+                      <span className={styles.workloadLabel}>
+                        <span style={{ color: '#64D2FF' }}>●</span> Active Tickets
+                      </span>
+                      <span className={styles.workloadVal}>{workload.activeTickets}</span>
+                    </div>
+                    <div className={styles.workloadBarTrack}>
+                      <div
+                        className={styles.workloadBarFill}
+                        style={{
+                          width: `${(workload.activeTickets / maxWorkload) * 100}%`,
+                          backgroundColor: '#64D2FF',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.workloadItem}>
+                    <div className={styles.workloadRow}>
+                      <span className={styles.workloadLabel}>
+                        <span style={{ color: '#FF453A' }}>●</span> High / Urgent Active
+                      </span>
+                      <span className={styles.workloadVal}>{workload.highUrgentTickets}</span>
+                    </div>
+                    <div className={styles.workloadBarTrack}>
+                      <div
+                        className={styles.workloadBarFill}
+                        style={{
+                          width: `${(workload.highUrgentTickets / maxWorkload) * 100}%`,
+                          backgroundColor: '#FF453A',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.workloadItem}>
+                    <div className={styles.workloadRow}>
+                      <span className={styles.workloadLabel}>
+                        <span style={{ color: '#30D158' }}>●</span> Resolved
+                      </span>
+                      <span className={styles.workloadVal}>{workload.resolvedTickets}</span>
+                    </div>
+                    <div className={styles.workloadBarTrack}>
+                      <div
+                        className={styles.workloadBarFill}
+                        style={{
+                          width: `${(workload.resolvedTickets / maxWorkload) * 100}%`,
+                          backgroundColor: '#30D158',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.workloadItem}>
+                    <div className={styles.workloadRow}>
+                      <span className={styles.workloadLabel}>
+                        <span style={{ color: '#8E8E93' }}>●</span> Closed
+                      </span>
+                      <span className={styles.workloadVal}>{workload.closedTickets}</span>
+                    </div>
+                    <div className={styles.workloadBarTrack}>
+                      <div
+                        className={styles.workloadBarFill}
+                        style={{
+                          width: `${(workload.closedTickets / maxWorkload) * 100}%`,
+                          backgroundColor: '#8E8E93',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions Card */}
+              <div className={styles.quickActionsCard}>
+                <h3 className={styles.cardTitle}>Quick Actions</h3>
+                <div className={styles.quickGrid}>
+                  <button
+                    type="button"
+                    className={styles.quickBtn}
+                    onClick={() => navigate('/agent/queue')}
+                  >
+                    <span>📥 Available Queue</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.quickBtn}
+                    onClick={() => navigate('/agent/my-tickets')}
+                  >
+                    <span>📂 My Assigned</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.quickBtn}
+                    onClick={() => navigate('/agent/escalated')}
+                  >
+                    <span>🚨 Escalated Tickets</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.quickBtn}
+                    onClick={() => navigate('/agent/tickets')}
+                  >
+                    <span>🔍 All Tickets</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.quickBtn}
+                    onClick={() => navigate('/agent/notifications')}
+                  >
+                    <span>🔔 Notifications</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

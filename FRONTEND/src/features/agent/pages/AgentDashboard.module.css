@@ -81,10 +81,10 @@
   box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
 }
 
-/* KPI Grid (6 Cards) */
+/* KPI Grid (5 Cards) */
 .kpiGrid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 1.25rem;
 }
 
@@ -768,3 +768,209 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Loading & Error States */
+.loadingState,
+.errorState {
+  background: rgba(18, 18, 24, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-xl, 16px);
+  padding: 3.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  min-height: 340px;
+}
+
+.spinner {
+  width: 38px;
+  height: 38px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #0A84FF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingText {
+  color: #8e8e93;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.errorIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 69, 58, 0.15);
+  color: #FF453A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.errorIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.errorTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.errorDesc {
+  font-size: 0.85rem;
+  color: #8e8e93;
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.retryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.3rem;
+  border-radius: 10px;
+  background: #0A84FF;
+  color: #ffffff;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retryBtn:hover {
+  background: #0070df;
+  transform: translateY(-1px);
+}
+
+.retryBtn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  gap: 0.85rem;
+}
+
+.emptyIcon {
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+  opacity: 0.8;
+}
+
+.emptyTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.emptyDesc {
+  font-size: 0.85rem;
+  color: #8e8e93;
+  max-width: 360px;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.browseQueueBtn {
+  margin-top: 0.5rem;
+  background: rgba(10, 132, 255, 0.15);
+  color: #0A84FF;
+  border: 1px solid rgba(10, 132, 255, 0.3);
+  padding: 0.55rem 1.15rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.browseQueueBtn:hover {
+  background: rgba(10, 132, 255, 0.25);
+  border-color: #0A84FF;
+}
+
+/* Workload Card */
+.workloadCard {
+  padding: 1.75rem;
+  border-radius: var(--radius-xl, 16px);
+  background: rgba(18, 18, 24, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.workloadList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.workloadItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.workloadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.workloadLabel {
+  color: #d1d5db;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.workloadVal {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.workloadBarTrack {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.workloadBarFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+

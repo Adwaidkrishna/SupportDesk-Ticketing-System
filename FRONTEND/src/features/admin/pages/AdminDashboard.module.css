@@ -86,7 +86,7 @@
 
 .kpiGrid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 1rem;
 }
 
@@ -711,3 +711,171 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Loading & Error States */
+.loadingState,
+.errorState {
+  background: #0f1219;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 3.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  min-height: 340px;
+}
+
+.spinner {
+  width: 38px;
+  height: 38px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #0A84FF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingText {
+  color: #9ca3af;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.errorIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 69, 58, 0.15);
+  color: #FF453A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.errorIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.errorTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.errorDesc {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.retryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.3rem;
+  border-radius: 8px;
+  background: #0A84FF;
+  color: #ffffff;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.retryBtn:hover {
+  background: #0070df;
+  transform: translateY(-1px);
+}
+
+.retryBtn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2.5rem 1rem;
+  gap: 0.5rem;
+}
+
+.emptyIcon {
+  font-size: 2rem;
+  opacity: 0.7;
+}
+
+.emptyText {
+  font-size: 0.875rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+/* Category Distribution */
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.categoryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.categoryMeta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.825rem;
+}
+
+.categoryName {
+  color: #e5e7eb;
+  font-weight: 500;
+}
+
+.categoryCount {
+  color: #9ca3af;
+}
+
+.categoryBarTrack {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.categoryBarFill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #0A84FF, #64D2FF);
+  transition: width 0.3s ease;
+}
+
+/* Unassigned text in table */
+.unassignedText {
+  color: #6b7280;
+  font-style: italic;
+}
+
