@@ -38,6 +38,15 @@ export default function StatCard({ stat }) {
             <path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2" />
           </svg>
         );
+      case 'archive':
+      case 'closed':
+        return (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="21 8 21 21 3 21 3 8" />
+            <rect x="1" y="3" width="22" height="5" />
+            <line x1="10" y1="12" x2="14" y2="12" />
+          </svg>
+        );
       default:
         return null;
     }
@@ -76,11 +85,13 @@ export default function StatCard({ stat }) {
       <div className={styles.bottomRow}>
         <div className={styles.valueRow}>
           <span className={styles.value}>{value}</span>
-          <span
-            className={`${styles.trendTag} ${trend === 'down' ? styles.trendDown : styles.trendUp}`}
-          >
-            {change}
-          </span>
+          {change ? (
+            <span
+              className={`${styles.trendTag} ${trend === 'down' ? styles.trendDown : styles.trendUp}`}
+            >
+              {change}
+            </span>
+          ) : null}
         </div>
         <span className={styles.label}>{label}</span>
       </div>

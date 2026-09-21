@@ -6,66 +6,135 @@
   animation: fadeIn 0.4s ease both;
 }
 
-/* Stats Grid — 4 Columns */
+/* Stats Grid — 5 Columns for: Total, Open, In Progress, Resolved, Closed */
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-6);
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-5);
   margin-bottom: var(--space-8);
 }
 
-/* Middle Grid — Activity (2fr), Categories (1.3fr), Quick Actions (1.2fr) */
-.middleGrid {
+/* Content Grid — Recent Tickets (left, 1.8fr) & Quick Actions + Notifications (right, 1.2fr) */
+.contentGrid {
   display: grid;
-  grid-template-columns: 2fr 1.3fr 1.2fr;
+  grid-template-columns: 1.8fr 1.2fr;
   gap: var(--space-6);
-  margin-bottom: var(--space-8);
-  align-items: stretch;
+  align-items: start;
 }
 
-.activityCol,
-.categoryCol,
-.quickCol {
+.leftCol {
   display: flex;
   flex-direction: column;
-}
-
-.activityCol > div,
-.categoryCol > div,
-.quickCol > div {
-  height: 100%;
-}
-
-/* Bottom Grid — Recent Tickets (2fr) & KB Preview (1fr) */
-.bottomGrid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
   gap: var(--space-6);
-  align-items: stretch;
 }
 
-.ticketsCol,
-.kbCol {
+.rightCol {
   display: flex;
   flex-direction: column;
+  gap: var(--space-6);
 }
 
-.ticketsCol > div,
-.kbCol > div {
-  height: 100%;
+/* Loading & Error States */
+.loadingState,
+.errorState {
+  background: rgba(16, 17, 22, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: var(--space-12) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--space-4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  min-height: 320px;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loadingText {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.errorIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 69, 58, 0.15);
+  color: #FF453A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.errorIcon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.errorTitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: #ffffff;
+  margin: 0;
+}
+
+.errorDesc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  max-width: 400px;
+  margin: 0;
+}
+
+.retryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 18px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: #ffffff;
+  border: none;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.retryBtn:hover {
+  background: var(--color-accent-hover);
+}
+
+.retryBtn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ============================================
    Responsive Strategy
    ============================================ */
 
-@media (max-width: 1280px) {
-  .middleGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .quickCol {
-    grid-column: span 2;
+@media (max-width: 1400px) {
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -76,39 +145,15 @@
     margin-bottom: var(--space-6);
   }
 
-  .middleGrid {
+  .contentGrid {
     grid-template-columns: 1fr;
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
-  }
-
-  .activityCol > div,
-  .categoryCol > div,
-  .quickCol > div,
-  .ticketsCol > div,
-  .kbCol > div {
-    height: auto;
-  }
-
-  .quickCol {
-    grid-column: auto;
-  }
-
-  .bottomGrid {
-    grid-template-columns: 1fr;
-    gap: var(--space-4);
+    gap: var(--space-6);
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .statsGrid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: var(--space-3);
-  }
-
-  .middleGrid,
-  .bottomGrid {
-    gap: var(--space-3);
-    margin-bottom: var(--space-4);
   }
 }
