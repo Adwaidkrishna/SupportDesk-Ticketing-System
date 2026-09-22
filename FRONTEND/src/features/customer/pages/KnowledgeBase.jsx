@@ -1,27 +1,98 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { knowledgeBaseCategories, knowledgeBaseArticlesList } from '../customerMockData';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  getKnowledgeCategories,
+  getKnowledgeArticles,
+} from '../services/knowledgeBase.service';
 import styles from './KnowledgeBase.module.css';
 
 export default function KnowledgeBase() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAgent = location.pathname.startsWith('/agent');
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [categories, setCategories] = useState([]);
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const filteredArticles = knowledgeBaseArticlesList.filter((article) => {
-    const matchesSearch =
-      searchQuery.trim() === '' ||
-      article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.snippet.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      article.category.toLowerCase().includes(searchQuery.toLowerCase());
+  // Fetch categories and articles
+  useEffect(() => {
+    let isMounted = true;
 
-    const matchesCategory =
-      selectedCategory === 'all' || article.categoryId === selectedCategory;
+    async function loadData() {
+      try {
+        setLoading(true);
+        setError(null);
 
-    return matchesSearch && matchesCategory;
-  });
+        const [catRes, artRes] = await Promise.all([
+          getKnowledgeCategories().catch(() => ({ data: { categories: [] } })),
+          getKnowledgeArticles({
+            search: searchQuery,
+            category: selectedCategory === 'all' ? '' : selectedCategory,
+          }).catch(() => ({ data: { articles: [] } })),
+        ]);
 
-  const popularArticles = knowledgeBaseArticlesList.filter((a) => a.isPopular);
+        if (isMounted) {
+          if (catRes?.data?.categories) {
+            setCategories(catRes.data.categories);
+          }
+          if (artRes?.data?.articles) {
+            setArticles(artRes.data.articles);
+          }
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || 'Failed to load knowledge base articles.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    // Debounce search query slightly if typing
+    const timeoutId = setTimeout(() => {
+      loadData();
+    }, 200);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [searchQuery, selectedCategory]);
+
+  const calculateReadTime = (content) => {
+    if (!content) return '1 min read';
+    const words = content.trim().split(/\s+/).length;
+    return `${Math.max(1, Math.ceil(words / 200))} min read`;
+  };
+
+  const getSnippet = (content) => {
+    if (!content) return '';
+    const clean = content.replace(/\n+/g, ' ').trim();
+    return clean.length > 150 ? clean.substring(0, 147) + '...' : clean;
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'Recently';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  // First 3 articles serve as popular/featured articles when in all-view
+  const popularArticles = articles.slice(0, 3);
+
+  const handleArticleClick = (articleId) => {
+    const basePath = isAgent ? '/agent/knowledge-base' : '/customer/knowledge-base';
+    navigate(`${basePath}/${articleId}`);
+  };
 
   const renderCategoryIcon = (iconName) => {
     switch (iconName) {
@@ -52,12 +123,18 @@ export default function KnowledgeBase() {
           </svg>
         );
       case 'cpu':
-      default:
         return (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="4" y="4" width="16" height="16" rx="2" />
             <rect x="9" y="9" width="6" height="6" />
             <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
+          </svg>
+        );
+      case 'folder':
+      default:
+        return (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
           </svg>
         );
     }
@@ -116,27 +193,27 @@ export default function KnowledgeBase() {
         </div>
 
         <div className={styles.categoryGrid}>
-          {knowledgeBaseCategories.map((cat) => {
-            const isSelected = selectedCategory === cat.id;
+          {categories.map((cat) => {
+            const isSelected = selectedCategory === cat.name || selectedCategory === cat.id;
             return (
               <div
-                key={cat.id}
+                key={cat.id || cat.name}
                 className={`${styles.categoryCard} ${isSelected ? styles.selectedCat : ''}`}
                 onClick={() =>
-                  setSelectedCategory(isSelected ? 'all' : cat.id)
+                  setSelectedCategory(isSelected ? 'all' : cat.name || cat.id)
                 }
               >
                 <div
                   className={styles.catIconWrap}
                   style={{
-                    backgroundColor: `${cat.color}1A`,
-                    color: cat.color,
+                    backgroundColor: `${cat.color || '#6366F1'}1A`,
+                    color: cat.color || '#6366F1',
                   }}
                 >
                   {renderCategoryIcon(cat.icon)}
                 </div>
                 <div className={styles.catInfo}>
-                  <h3 className={styles.catTitle}>{cat.title}</h3>
+                  <h3 className={styles.catTitle}>{cat.title || cat.name}</h3>
                   <p className={styles.catDesc}>{cat.description}</p>
                 </div>
                 <div className={styles.catFooter}>
@@ -150,32 +227,31 @@ export default function KnowledgeBase() {
       </div>
 
       {/* Popular Articles Section (Shown when no search/category filter active) */}
-      {selectedCategory === 'all' && !searchQuery && (
+      {selectedCategory === 'all' && !searchQuery && popularArticles.length > 0 && (
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
             <div className={styles.titleWithIcon}>
               <span className={styles.popularIcon}>🔥</span>
-              <h2 className={styles.sectionTitle}>Popular Articles</h2>
+              <h2 className={styles.sectionTitle}>Featured Articles</h2>
             </div>
           </div>
 
           <div className={styles.popularGrid}>
             {popularArticles.map((article) => (
               <div
-                key={article.id}
+                key={article._id || article.id}
                 className={styles.articleCard}
-                onClick={() => navigate(`/customer/knowledge-base/${article.id}`)}
+                onClick={() => handleArticleClick(article._id || article.id)}
               >
                 <div className={styles.articleTop}>
                   <span className={styles.categoryBadge}>{article.category}</span>
-                  <span className={styles.readTime}>{article.readTime}</span>
+                  <span className={styles.readTime}>{calculateReadTime(article.content)}</span>
                 </div>
                 <h3 className={styles.articleTitle}>{article.title}</h3>
-                <p className={styles.articleSnippet}>{article.snippet}</p>
+                <p className={styles.articleSnippet}>{getSnippet(article.content)}</p>
 
                 <div className={styles.articleMeta}>
-                  <span>👀 {article.views} views</span>
-                  <span>👍 {article.helpfulRating}</span>
+                  <span>Updated {formatDate(article.updatedAt || article.createdAt)}</span>
                 </div>
               </div>
             ))}
@@ -187,15 +263,24 @@ export default function KnowledgeBase() {
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>
-            {searchQuery
-              ? `Search Results (${filteredArticles.length})`
+            {loading
+              ? 'Loading Articles...'
+              : searchQuery
+              ? `Search Results (${articles.length})`
               : selectedCategory !== 'all'
-              ? `Category Articles (${filteredArticles.length})`
+              ? `${selectedCategory} Articles (${articles.length})`
               : 'All Knowledge Articles'}
           </h2>
         </div>
 
-        {filteredArticles.length === 0 ? (
+        {error && (
+          <div className={styles.emptyCard} style={{ borderColor: 'var(--color-danger, #ef4444)' }}>
+            <h3 className={styles.emptyTitle}>Error loading articles</h3>
+            <p className={styles.emptyDesc}>{error}</p>
+          </div>
+        )}
+
+        {!loading && !error && articles.length === 0 ? (
           <div className={styles.emptyCard}>
             <div className={styles.emptyIcon}>🔍</div>
             <h3 className={styles.emptyTitle}>No matching articles found</h3>
@@ -215,11 +300,11 @@ export default function KnowledgeBase() {
           </div>
         ) : (
           <div className={styles.articlesList}>
-            {filteredArticles.map((article) => (
+            {articles.map((article) => (
               <div
-                key={article.id}
+                key={article._id || article.id}
                 className={styles.articleRow}
-                onClick={() => navigate(`/customer/knowledge-base/${article.id}`)}
+                onClick={() => handleArticleClick(article._id || article.id)}
               >
                 <div className={styles.articleRowLeft}>
                   <div className={styles.docIcon}>
@@ -232,11 +317,11 @@ export default function KnowledgeBase() {
                   </div>
                   <div className={styles.rowInfo}>
                     <h3 className={styles.rowTitle}>{article.title}</h3>
-                    <p className={styles.rowSnippet}>{article.snippet}</p>
+                    <p className={styles.rowSnippet}>{getSnippet(article.content)}</p>
                     <div className={styles.rowMeta}>
                       <span className={styles.catBadge}>{article.category}</span>
-                      <span>{article.readTime}</span>
-                      <span>Updated {article.lastUpdated}</span>
+                      <span>{calculateReadTime(article.content)}</span>
+                      <span>Updated {formatDate(article.updatedAt || article.createdAt)}</span>
                     </div>
                   </div>
                 </div>
@@ -250,22 +335,24 @@ export default function KnowledgeBase() {
         )}
       </div>
 
-      {/* Support CTA Box */}
-      <div className={styles.ctaCard}>
-        <div className={styles.ctaContent}>
-          <h3 className={styles.ctaTitle}>Still need help?</h3>
-          <p className={styles.ctaDesc}>
-            Our dedicated support team is available 24/7 to assist you with any technical issues.
-          </p>
+      {/* Support CTA Box (Only shown for Customers) */}
+      {!isAgent && (
+        <div className={styles.ctaCard}>
+          <div className={styles.ctaContent}>
+            <h3 className={styles.ctaTitle}>Still need help?</h3>
+            <p className={styles.ctaDesc}>
+              Our dedicated support team is available 24/7 to assist you with any technical issues.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.ctaButton}
+            onClick={() => navigate('/customer/create-ticket')}
+          >
+            Create Support Ticket
+          </button>
         </div>
-        <button
-          type="button"
-          className={styles.ctaButton}
-          onClick={() => navigate('/customer/create-ticket')}
-        >
-          Create Support Ticket
-        </button>
-      </div>
+      )}
     </div>
   );
 }

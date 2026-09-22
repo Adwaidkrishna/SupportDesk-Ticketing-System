@@ -33,6 +33,7 @@ import AdminTicketDetails from '../features/admin/pages/AdminTicketDetails';
 import Users from '../features/admin/pages/Users';
 import Agents from '../features/admin/pages/Agents';
 import Categories from '../features/admin/pages/Categories';
+import AdminKnowledgeBase from '../features/admin/pages/KnowledgeBase';
 import SLA from '../features/admin/pages/SLA';
 import Reports from '../features/admin/pages/Reports';
 import Settings from '../features/admin/pages/Settings';
@@ -107,6 +108,7 @@ export default function AppRoutes() {
           <Route path="/admin/users" element={<Users />} />
           <Route path="/admin/agents" element={<Agents />} />
           <Route path="/admin/categories" element={<Categories />} />
+          <Route path="/admin/knowledge-base" element={<AdminKnowledgeBase />} />
           <Route path="/admin/sla" element={<SLA />} />
           <Route path="/admin/reports" element={<Reports />} />
           <Route path="/admin/settings" element={<Settings />} />

@@ -1,27 +1,148 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { knowledgeBaseArticlesList } from '../customerMockData';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import {
+  getKnowledgeArticleById,
+  getKnowledgeArticles,
+} from '../services/knowledgeBase.service';
 import styles from './ArticleDetails.module.css';
 
 export default function ArticleDetails() {
   const { articleId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAgent = location.pathname.startsWith('/agent');
+  const basePath = isAgent ? '/agent/knowledge-base' : '/customer/knowledge-base';
 
+  const [article, setArticle] = useState(null);
+  const [relatedArticles, setRelatedArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [feedbackGiven, setFeedbackGiven] = useState(null); // 'yes' | 'no' | null
 
-  // Find target article or fallback to first article
-  const article =
-    knowledgeBaseArticlesList.find((a) => a.id === articleId) ||
-    knowledgeBaseArticlesList[0];
+  useEffect(() => {
+    let isMounted = true;
 
-  // Related articles in same category or fallback to other popular articles
-  const relatedArticles = knowledgeBaseArticlesList
-    .filter((a) => a.id !== article.id)
-    .slice(0, 3);
+    async function fetchArticle() {
+      try {
+        setLoading(true);
+        setError(null);
+        setFeedbackGiven(null);
+
+        const res = await getKnowledgeArticleById(articleId);
+        const fetchedArticle = res?.data?.article;
+
+        if (isMounted) {
+          setArticle(fetchedArticle);
+
+          if (fetchedArticle?.category) {
+            // Fetch related articles in the same category
+            getKnowledgeArticles({ category: fetchedArticle.category, limit: 4 })
+              .then((relRes) => {
+                if (isMounted && relRes?.data?.articles) {
+                  setRelatedArticles(
+                    relRes.data.articles.filter((a) => (a._id || a.id) !== articleId).slice(0, 3)
+                  );
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || 'Article could not be found.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    if (articleId) {
+      fetchArticle();
+    }
+  }, [articleId]);
+
+  const calculateReadTime = (content) => {
+    if (!content) return '1 min read';
+    const words = content.trim().split(/\s+/).length;
+    return `${Math.max(1, Math.ceil(words / 200))} min read`;
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return 'Recently';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
 
   const handleFeedback = (type) => {
     setFeedbackGiven(type);
   };
+
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.topNav}>
+          <button
+            type="button"
+            className={styles.backBtn}
+            onClick={() => navigate(basePath)}
+          >
+            ← Back to Knowledge Base
+          </button>
+        </div>
+        <div className={styles.contentCard} style={{ padding: '3rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--color-text-muted, #94a3b8)' }}>Loading article content...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !article) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.topNav}>
+          <button
+            type="button"
+            className={styles.backBtn}
+            onClick={() => navigate(basePath)}
+          >
+            ← Back to Knowledge Base
+          </button>
+        </div>
+        <div className={styles.contentCard} style={{ padding: '3rem', textAlign: 'center' }}>
+          <h2 style={{ marginBottom: '1rem', color: 'var(--color-danger, #ef4444)' }}>
+            Article Not Found
+          </h2>
+          <p style={{ marginBottom: '1.5rem', color: 'var(--color-text-muted, #94a3b8)' }}>
+            {error || 'The requested article may have been unpublished or deleted.'}
+          </p>
+          <button
+            type="button"
+            className={styles.backBtn}
+            style={{ display: 'inline-block' }}
+            onClick={() => navigate(basePath)}
+          >
+            Return to Knowledge Base
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const authorName = article.authorId?.name || article.author || 'SupportDesk Team';
+  const authorInitials = authorName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  // Split content into readable paragraphs
+  const paragraphs = article.content ? article.content.split('\n\n') : [];
 
   return (
     <div className={styles.page}>
@@ -30,13 +151,13 @@ export default function ArticleDetails() {
         <button
           type="button"
           className={styles.backBtn}
-          onClick={() => navigate('/customer/knowledge-base')}
+          onClick={() => navigate(basePath)}
         >
           ← Back to Knowledge Base
         </button>
 
         <div className={styles.breadcrumbs}>
-          <span onClick={() => navigate('/customer/knowledge-base')}>
+          <span onClick={() => navigate(basePath)}>
             Knowledge Base
           </span>
           <span className={styles.bcSep}>/</span>
@@ -53,76 +174,56 @@ export default function ArticleDetails() {
           <div className={styles.header}>
             <div className={styles.metaTop}>
               <span className={styles.categoryBadge}>{article.category}</span>
-              <span className={styles.readTime}>⏱ {article.readTime}</span>
-              <span className={styles.views}>👀 {article.views} views</span>
+              <span className={styles.readTime}>⏱ {calculateReadTime(article.content)}</span>
             </div>
 
             <h1 className={styles.title}>{article.title}</h1>
 
             <div className={styles.authorBar}>
               <div className={styles.avatarCircle}>
-                {article.author
-                  ? article.author
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .slice(0, 2)
-                  : 'SD'}
+                {authorInitials}
               </div>
               <div className={styles.authorMeta}>
                 <span className={styles.authorName}>
-                  Written by <strong>{article.author || 'SupportDesk Team'}</strong>
+                  Written by <strong>{authorName}</strong>
                 </span>
                 <span className={styles.lastUpdated}>
-                  Last updated on {article.lastUpdated || 'Sep 15, 2026'}
+                  Last updated on {formatDate(article.updatedAt || article.createdAt)}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Article Summary Snippet Banner */}
-          <div className={styles.summaryBanner}>
-            <div className={styles.summaryIcon}>💡</div>
-            <p className={styles.summaryText}>{article.snippet}</p>
-          </div>
-
           {/* Article Body Sections */}
           <div className={styles.articleBody}>
-            {article.sections && article.sections.length > 0 ? (
-              article.sections.map((sec, idx) => (
-                <div key={idx} className={styles.sectionBlock}>
-                  <h2 className={styles.sectionHeading}>{sec.heading}</h2>
-                  <p className={styles.sectionParagraph}>{sec.content}</p>
-                </div>
-              ))
-            ) : (
-              <div className={styles.sectionBlock}>
-                <h2 className={styles.sectionHeading}>1. Overview & Setup</h2>
-                <p className={styles.sectionParagraph}>
-                  Follow the step-by-step instructions below to configure your settings,
-                  verify access credentials, and ensure optimal security compliance on
-                  the SupportDesk platform.
-                </p>
-                <h2 className={styles.sectionHeading}>2. Step-by-Step Guide</h2>
-                <p className={styles.sectionParagraph}>
-                  1. Log into your customer account using your verified credentials.
-                  <br />
-                  2. Navigate to your dashboard settings tab located in the navigation header.
-                  <br />
-                  3. Save changes and confirm via email notification.
-                </p>
-              </div>
-            )}
+            {paragraphs.map((para, idx) => {
+              // Check if paragraph looks like a section header (e.g. "1. Step" or short line followed by details)
+              const isHeaderLike = para.length < 80 && !para.includes('.') && !para.includes(',');
+              if (isHeaderLike) {
+                return (
+                  <div key={idx} className={styles.sectionBlock}>
+                    <h2 className={styles.sectionHeading}>{para}</h2>
+                  </div>
+                );
+              }
 
-            {/* Callout Box */}
+              return (
+                <div key={idx} className={styles.sectionBlock}>
+                  <p className={styles.sectionParagraph} style={{ whiteSpace: 'pre-line' }}>
+                    {para}
+                  </p>
+                </div>
+              );
+            })}
+
+            {/* Support Notice */}
             <div className={styles.calloutNote}>
               <div className={styles.calloutHeader}>
                 <span className={styles.calloutIcon}>🔒</span>
-                <strong>Security Best Practice:</strong>
+                <strong>Security & Best Practices:</strong>
               </div>
               <p className={styles.calloutText}>
-                Always store your backup recovery codes in a secure offline password manager.
-                Never share your 2FA authentication codes or session tokens with anyone.
+                Always ensure you are using verified credentials. Never share authentication codes or tokens with unauthorized parties.
               </p>
             </div>
           </div>
@@ -145,7 +246,7 @@ export default function ArticleDetails() {
                     className={`${styles.feedbackBtn} ${styles.yesBtn}`}
                     onClick={() => handleFeedback('yes')}
                   >
-                    👍 Yes ({article.helpfulRating || '98%'})
+                    👍 Yes
                   </button>
                   <button
                     type="button"
@@ -160,47 +261,45 @@ export default function ArticleDetails() {
           </div>
         </div>
 
-        {/* Sidebar: Related Articles & Support CTA */}
-        <div className={styles.sidebar}>
-          {/* Related Articles Card */}
-          <div className={styles.sidebarCard}>
-            <h3 className={styles.sidebarTitle}>Related Articles</h3>
-            <div className={styles.relatedList}>
-              {relatedArticles.map((item) => (
-                <div
-                  key={item.id}
-                  className={styles.relatedItem}
-                  onClick={() => {
-                    setFeedbackGiven(null);
-                    navigate(`/customer/knowledge-base/${item.id}`);
-                  }}
-                >
-                  <h4 className={styles.relatedTitle}>{item.title}</h4>
-                  <div className={styles.relatedMeta}>
-                    <span>{item.category}</span>
-                    <span>•</span>
-                    <span>{item.readTime}</span>
+        {/* Related Articles Sidebar */}
+        <div className={styles.sideColumn}>
+          {relatedArticles.length > 0 && (
+            <div className={styles.relatedCard}>
+              <h3 className={styles.sideTitle}>Related Articles</h3>
+              <div className={styles.relatedList}>
+                {relatedArticles.map((rel) => (
+                  <div
+                    key={rel._id || rel.id}
+                    className={styles.relatedItem}
+                    onClick={() => navigate(`${basePath}/${rel._id || rel.id}`)}
+                  >
+                    <h4 className={styles.relatedItemTitle}>{rel.title}</h4>
+                    <span className={styles.relatedMeta}>
+                      {rel.category} • {calculateReadTime(rel.content)}
+                    </span>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Still Need Support Card */}
-          <div className={styles.supportCard}>
-            <div className={styles.supportIcon}>💬</div>
-            <h3 className={styles.supportTitle}>Didn't find your answer?</h3>
-            <p className={styles.supportDesc}>
-              Our technical support engineers are standing by to help resolve your issue.
-            </p>
-            <button
-              type="button"
-              className={styles.supportBtn}
-              onClick={() => navigate('/customer/create-ticket')}
-            >
-              Create Support Ticket
-            </button>
-          </div>
+          {/* Need help card */}
+          {!isAgent && (
+            <div className={styles.contactSupportCard}>
+              <div className={styles.supportCardIcon}>💬</div>
+              <h3 className={styles.supportCardTitle}>Need more assistance?</h3>
+              <p className={styles.supportCardDesc}>
+                Our support engineers can help you resolve specific issues not covered in this guide.
+              </p>
+              <button
+                type="button"
+                className={styles.supportCardBtn}
+                onClick={() => navigate('/customer/create-ticket')}
+              >
+                Open a Ticket
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
