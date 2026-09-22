@@ -28,6 +28,25 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    department: {
+      type: String,
+      trim: true,
+      default: 'General Support',
+    },
+    availability: {
+      type: String,
+      enum: ['Available', 'Busy', 'Away', 'Offline'],
+      default: 'Available',
+    },
   },
   { timestamps: true }
 );

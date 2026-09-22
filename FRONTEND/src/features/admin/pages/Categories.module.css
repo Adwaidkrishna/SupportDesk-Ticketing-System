@@ -367,3 +367,86 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+.confirmActivateBtn {
+  background: #30D158;
+  color: #ffffff;
+  border: none;
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deactivateBtn {
+  color: #FF9F0A;
+  border-color: rgba(255, 159, 10, 0.2);
+}
+
+.deactivateBtn:hover {
+  background: rgba(255, 159, 10, 0.1);
+}
+
+.activateBtn {
+  color: #30D158;
+  border-color: rgba(48, 209, 88, 0.2);
+}
+
+.activateBtn:hover {
+  background: rgba(48, 209, 88, 0.1);
+}
+
+.loadingContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 1rem;
+  color: #9ca3af;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #0A84FF;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.errorBanner {
+  background: rgba(255, 69, 58, 0.12);
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #ff453a;
+  font-size: 0.9rem;
+}
+
+.retryBtn {
+  background: #ff453a;
+  color: #ffffff;
+  border: none;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.retryBtn:hover {
+  opacity: 0.9;
+}
+

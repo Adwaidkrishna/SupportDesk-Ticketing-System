@@ -1,21 +1,49 @@
-import { useState } from 'react';
-import { adminCategoriesList } from '../adminMockData';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  getAdminCategories,
+  createCategory,
+  updateCategory,
+  toggleCategoryStatus,
+} from '../services/adminCategory.service';
 import styles from './Categories.module.css';
 
 export default function Categories() {
-  const [categories, setCategories] = useState(adminCategoriesList);
+  const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Modal State
-  const [modalMode, setModalMode] = useState(null); // 'create' | 'edit' | 'delete'
+  const [modalMode, setModalMode] = useState(null); // 'create' | 'edit' | 'toggleStatus'
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', status: 'Active', icon: 'wrench' });
+  const [form, setForm] = useState({ name: '', description: '', status: 'Active' });
   const [toastMsg, setToastMsg] = useState(null);
 
   const showToast = (msg) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+    setTimeout(() => setToastMsg(null), 3500);
   };
+
+  // Fetch all categories with live ticket counts from backend
+  const fetchCategories = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await getAdminCategories();
+      if (response && response.data) {
+        setCategories(response.data.categories || []);
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load categories from database.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const filteredCategories = categories.filter(
     (c) =>
@@ -24,7 +52,7 @@ export default function Categories() {
   );
 
   const handleOpenCreate = () => {
-    setForm({ name: '', description: '', status: 'Active', icon: 'wrench' });
+    setForm({ name: '', description: '', status: 'Active' });
     setModalMode('create');
   };
 
@@ -32,49 +60,79 @@ export default function Categories() {
     setSelectedCategory(cat);
     setForm({
       name: cat.name,
-      description: cat.description,
-      status: cat.status,
-      icon: cat.icon || 'wrench',
+      description: cat.description || '',
+      status: cat.status || (cat.isActive ? 'Active' : 'Inactive'),
     });
     setModalMode('edit');
   };
 
-  const handleOpenDelete = (cat) => {
+  const handleOpenToggleStatus = (cat) => {
     setSelectedCategory(cat);
-    setModalMode('delete');
+    setModalMode('toggleStatus');
   };
 
-  const handleCreateSubmit = (e) => {
+  const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    const newCat = {
-      id: `cat_${Date.now()}`,
-      name: form.name,
-      description: form.description,
-      ticketsCount: 0,
-      status: form.status,
-      createdDate: 'Today',
-      icon: form.icon,
-    };
-    setCategories([newCat, ...categories]);
-    showToast(`Category "${form.name}" created successfully.`);
-    setModalMode(null);
+    setIsSubmitting(true);
+    try {
+      await createCategory({
+        name: form.name.trim(),
+        description: form.description.trim(),
+        isActive: form.status === 'Active',
+      });
+      showToast(`Category "${form.name}" created successfully.`);
+      setModalMode(null);
+      await fetchCategories();
+    } catch (err) {
+      showToast(err.message || 'Failed to create category.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleEditSubmit = (e) => {
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
-    setCategories((prev) =>
-      prev.map((c) => (c.id === selectedCategory.id ? { ...c, ...form } : c))
-    );
-    showToast(`Category "${form.name}" updated.`);
-    setModalMode(null);
-    setSelectedCategory(null);
+    if (!selectedCategory) return;
+
+    setIsSubmitting(true);
+    try {
+      await updateCategory(selectedCategory.id || selectedCategory._id, {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        isActive: form.status === 'Active',
+      });
+      showToast(`Category "${form.name}" updated successfully.`);
+      setModalMode(null);
+      setSelectedCategory(null);
+      await fetchCategories();
+    } catch (err) {
+      showToast(err.message || 'Failed to update category.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleConfirmDelete = () => {
-    setCategories((prev) => prev.filter((c) => c.id !== selectedCategory.id));
-    showToast(`Category "${selectedCategory.name}" removed.`);
-    setModalMode(null);
-    setSelectedCategory(null);
+  const handleConfirmToggleStatus = async () => {
+    if (!selectedCategory) return;
+
+    setIsSubmitting(true);
+    const targetIsActive = selectedCategory.status === 'Active' ? false : true;
+    try {
+      await toggleCategoryStatus(
+        selectedCategory.id || selectedCategory._id,
+        targetIsActive
+      );
+      showToast(
+        `Category "${selectedCategory.name}" ${targetIsActive ? 'activated' : 'deactivated'} successfully.`
+      );
+      setModalMode(null);
+      setSelectedCategory(null);
+      await fetchCategories();
+    } catch (err) {
+      showToast(err.message || 'Failed to update category status.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -95,7 +153,7 @@ export default function Categories() {
           <span className={styles.badgeLabel}>TAXONOMY CONFIGURATION</span>
           <h1 className={styles.title}>Ticket Categories</h1>
           <p className={styles.subtitle}>
-            Organize ticket taxonomies, auto-routing rules, and department classification.
+            Organize ticket taxonomies, auto-routing rules, and department classification from live database records.
           </p>
         </div>
 
@@ -121,9 +179,24 @@ export default function Categories() {
         </div>
       </div>
 
+      {/* Error State with Retry Button */}
+      {error && (
+        <div className={styles.errorBanner}>
+          <span>⚠️ {error}</span>
+          <button type="button" className={styles.retryBtn} onClick={fetchCategories}>
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Categories Grid / Table */}
       <div className={styles.tableCard}>
-        {filteredCategories.length === 0 ? (
+        {isLoading ? (
+          <div className={styles.loadingContainer}>
+            <div className={styles.spinner} />
+            <p>Loading ticket categories from database...</p>
+          </div>
+        ) : filteredCategories.length === 0 ? (
           <div className={styles.emptyState}>
             <p>No ticket categories found.</p>
           </div>
@@ -143,8 +216,10 @@ export default function Categories() {
               <tbody>
                 {filteredCategories.map((cat) => (
                   <tr
-                    key={cat.id}
-                    className={`${styles.tableRow} ${cat.status === 'Inactive' ? styles.inactiveRow : ''}`}
+                    key={cat.id || cat._id}
+                    className={`${styles.tableRow} ${
+                      cat.status === 'Inactive' ? styles.inactiveRow : ''
+                    }`}
                   >
                     <td>
                       <div className={styles.catNameCell}>
@@ -156,12 +231,16 @@ export default function Categories() {
                       <p className={styles.catDesc}>{cat.description}</p>
                     </td>
                     <td>
-                      <span className={styles.ticketCountBadge}>{cat.ticketsCount} tickets</span>
+                      <span className={styles.ticketCountBadge}>
+                        {cat.ticketsCount} tickets
+                      </span>
                     </td>
                     <td>
                       <span
                         className={`${styles.statusBadge} ${
-                          cat.status === 'Active' ? styles.activeBadge : styles.inactiveBadge
+                          cat.status === 'Active'
+                            ? styles.activeBadge
+                            : styles.inactiveBadge
                         }`}
                       >
                         ● {cat.status}
@@ -181,10 +260,14 @@ export default function Categories() {
                         </button>
                         <button
                           type="button"
-                          className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                          onClick={() => handleOpenDelete(cat)}
+                          className={`${styles.actionBtn} ${
+                            cat.status === 'Active'
+                              ? styles.deactivateBtn
+                              : styles.activateBtn
+                          }`}
+                          onClick={() => handleOpenToggleStatus(cat)}
                         >
-                          Delete
+                          {cat.status === 'Active' ? 'Deactivate' : 'Activate'}
                         </button>
                       </div>
                     </td>
@@ -198,14 +281,29 @@ export default function Categories() {
 
       {/* Create / Edit Modal */}
       {(modalMode === 'create' || modalMode === 'edit') && (
-        <div className={styles.modalBackdrop} onClick={() => setModalMode(null)}>
+        <div
+          className={styles.modalBackdrop}
+          onClick={() => !isSubmitting && setModalMode(null)}
+        >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>{modalMode === 'create' ? 'Create New Category' : `Edit Category — ${selectedCategory?.name}`}</h3>
-              <button type="button" className={styles.closeBtn} onClick={() => setModalMode(null)}>✕</button>
+              <h3>
+                {modalMode === 'create'
+                  ? 'Create New Category'
+                  : `Edit Category — ${selectedCategory?.name}`}
+              </h3>
+              <button
+                type="button"
+                className={styles.closeBtn}
+                onClick={() => !isSubmitting && setModalMode(null)}
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={modalMode === 'create' ? handleCreateSubmit : handleEditSubmit}>
+            <form
+              onSubmit={modalMode === 'create' ? handleCreateSubmit : handleEditSubmit}
+            >
               <div className={styles.modalBody}>
                 <div className={styles.formGroup}>
                   <label>Category Name</label>
@@ -216,6 +314,7 @@ export default function Categories() {
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -228,6 +327,7 @@ export default function Categories() {
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -237,6 +337,7 @@ export default function Categories() {
                     className={styles.select}
                     value={form.status}
                     onChange={(e) => setForm({ ...form, status: e.target.value })}
+                    disabled={isSubmitting}
                   >
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
@@ -245,11 +346,24 @@ export default function Categories() {
               </div>
 
               <div className={styles.modalFooter}>
-                <button type="button" className={styles.cancelBtn} onClick={() => setModalMode(null)}>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={() => setModalMode(null)}
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </button>
-                <button type="submit" className={styles.saveBtn}>
-                  {modalMode === 'create' ? 'Create Category' : 'Save Changes'}
+                <button
+                  type="submit"
+                  className={styles.saveBtn}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? 'Saving...'
+                    : modalMode === 'create'
+                    ? 'Create Category'
+                    : 'Save Changes'}
                 </button>
               </div>
             </form>
@@ -257,30 +371,69 @@ export default function Categories() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {modalMode === 'delete' && selectedCategory && (
-        <div className={styles.modalBackdrop} onClick={() => setModalMode(null)}>
+      {/* Activate / Deactivate Confirmation Modal */}
+      {modalMode === 'toggleStatus' && selectedCategory && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={() => !isSubmitting && setModalMode(null)}
+        >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3>Delete Category</h3>
-              <button type="button" className={styles.closeBtn} onClick={() => setModalMode(null)}>✕</button>
+              <h3>
+                {selectedCategory.status === 'Active'
+                  ? 'Deactivate Category'
+                  : 'Activate Category'}
+              </h3>
+              <button
+                type="button"
+                className={styles.closeBtn}
+                onClick={() => !isSubmitting && setModalMode(null)}
+              >
+                ✕
+              </button>
             </div>
 
             <div className={styles.modalBody}>
               <p>
-                Are you sure you want to delete category <strong>"{selectedCategory.name}"</strong>?
+                Are you sure you want to{' '}
+                {selectedCategory.status === 'Active' ? 'deactivate' : 'activate'} category{' '}
+                <strong>"{selectedCategory.name}"</strong>?
               </p>
-              <p className={styles.warningText}>
-                Existing tickets under this category will remain, but customers will no longer be able to select it when opening new tickets.
-              </p>
+              {selectedCategory.status === 'Active' ? (
+                <p className={styles.warningText}>
+                  Existing tickets under this category will remain preserved, but customers will no longer be able to select it when opening new tickets.
+                </p>
+              ) : (
+                <p style={{ color: '#30D158', fontSize: '0.85rem' }}>
+                  Activating this category will allow customers to select it again when opening new tickets.
+                </p>
+              )}
             </div>
 
             <div className={styles.modalFooter}>
-              <button type="button" className={styles.cancelBtn} onClick={() => setModalMode(null)}>
+              <button
+                type="button"
+                className={styles.cancelBtn}
+                onClick={() => setModalMode(null)}
+                disabled={isSubmitting}
+              >
                 Cancel
               </button>
-              <button type="button" className={styles.confirmDeleteBtn} onClick={handleConfirmDelete}>
-                Delete Category
+              <button
+                type="button"
+                className={
+                  selectedCategory.status === 'Active'
+                    ? styles.confirmDeleteBtn
+                    : styles.confirmActivateBtn
+                }
+                onClick={handleConfirmToggleStatus}
+                disabled={isSubmitting}
+              >
+                {isSubmitting
+                  ? 'Updating...'
+                  : selectedCategory.status === 'Active'
+                  ? 'Deactivate Category'
+                  : 'Activate Category'}
               </button>
             </div>
           </div>

@@ -44,6 +44,13 @@ export const loginUser = async ({ email, password }) => {
     throw err;
   }
 
+  // Check active status
+  if (user.isActive === false) {
+    const err = new Error('Account has been deactivated. Please contact an administrator.');
+    err.statusCode = 403;
+    throw err;
+  }
+
   // Generate JWT with minimal identity claims
   const token = generateToken({
     userId: user._id,

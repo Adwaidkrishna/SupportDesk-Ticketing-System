@@ -1,33 +1,74 @@
-import { useState } from 'react';
-import { adminAgentsList } from '../adminMockData';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  getAdminAgents,
+  updateAgentStatus,
+  updateAgentDetails,
+} from '../services/adminAgent.service';
 import styles from './Agents.module.css';
 
 export default function Agents() {
-  const [agents, setAgents] = useState(adminAgentsList);
+  const [agents, setAgents] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    available: 0,
+    busy: 0,
+    away: 0,
+    offline: 0,
+    awayOffline: 0,
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Modal State
   const [selectedAgent, setSelectedAgent] = useState(null);
-  const [modalMode, setModalMode] = useState(null); // 'view' | 'edit' | 'status'
-  const [editForm, setEditForm] = useState({ name: '', email: '', role: '', department: '', status: 'Available' });
+  const [modalMode, setModalMode] = useState(null); // 'view' | 'edit'
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    role: 'agent',
+    department: 'General Support',
+    status: 'Available',
+  });
   const [toastMsg, setToastMsg] = useState(null);
 
   const showToast = (msg) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+    setTimeout(() => setToastMsg(null), 3500);
   };
 
-  const filteredAgents = agents.filter((a) => {
-    const matchesSearch =
-      a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.department.toLowerCase().includes(searchTerm.toLowerCase());
+  // Fetch agents and live workload metrics from backend API
+  const fetchAgents = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await getAdminAgents({
+        search: searchTerm,
+        status: statusFilter,
+      });
 
-    const matchesStatus = statusFilter === 'all' || a.status === statusFilter;
+      if (response && response.data) {
+        setAgents(response.data.agents || []);
+        if (response.data.stats) {
+          setStats(response.data.stats);
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load support agents from server.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchTerm, statusFilter]);
 
-    return matchesSearch && matchesStatus;
-  });
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchAgents();
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [fetchAgents]);
 
   const handleOpenView = (agent) => {
     setSelectedAgent(agent);
@@ -37,30 +78,49 @@ export default function Agents() {
   const handleOpenEdit = (agent) => {
     setSelectedAgent(agent);
     setEditForm({
-      name: agent.name,
-      email: agent.email,
-      role: agent.role,
-      department: agent.department,
-      status: agent.status,
+      name: agent.name || '',
+      email: agent.email || '',
+      role: agent.role || 'agent',
+      department: agent.department || 'General Support',
+      status: agent.status || agent.availability || 'Available',
     });
     setModalMode('edit');
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
-    setAgents((prev) =>
-      prev.map((a) => (a.id === selectedAgent.id ? { ...a, ...editForm } : a))
-    );
-    showToast(`Agent profile for ${editForm.name} updated.`);
-    setModalMode(null);
-    setSelectedAgent(null);
+    if (!selectedAgent) return;
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        name: editForm.name.trim(),
+        email: editForm.email.trim(),
+        role: editForm.role,
+        department: editForm.department.trim(),
+        status: editForm.status,
+      };
+
+      await updateAgentDetails(selectedAgent.id || selectedAgent._id, payload);
+      showToast(`Agent profile for ${editForm.name} updated.`);
+      setModalMode(null);
+      setSelectedAgent(null);
+      await fetchAgents();
+    } catch (err) {
+      showToast(err.message || 'Failed to update agent profile.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleQuickStatusChange = (agentId, newStatus) => {
-    setAgents((prev) =>
-      prev.map((a) => (a.id === agentId ? { ...a, status: newStatus } : a))
-    );
-    showToast(`Agent status updated to ${newStatus}`);
+  const handleQuickStatusChange = async (agentId, newStatus) => {
+    try {
+      await updateAgentStatus(agentId, newStatus);
+      showToast(`Agent status updated to ${newStatus}`);
+      await fetchAgents();
+    } catch (err) {
+      showToast(err.message || 'Failed to update agent availability.');
+    }
   };
 
   return (
@@ -81,17 +141,17 @@ export default function Agents() {
           <span className={styles.badgeLabel}>TEAM OPERATIONS</span>
           <h1 className={styles.title}>Support Agents</h1>
           <p className={styles.subtitle}>
-            Monitor agent workload, availability status, SLA compliance, and team assignments.
+            Monitor agent workload, availability status, SLA compliance, and team assignments from live MongoDB records.
           </p>
         </div>
       </div>
 
-      {/* KPI Cards Summary */}
+      {/* KPI Cards Summary (API-driven live stats) */}
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <span className={styles.kpiLabel}>Total Agents</span>
           <div className={styles.kpiValueRow}>
-            <span className={styles.kpiValue}>12</span>
+            <span className={styles.kpiValue}>{stats.total}</span>
             <span className={styles.kpiChange}>Support staff</span>
           </div>
         </div>
@@ -99,7 +159,9 @@ export default function Agents() {
         <div className={styles.kpiCard}>
           <span className={styles.kpiLabel}>Available (Online)</span>
           <div className={styles.kpiValueRow}>
-            <span className={styles.kpiValue} style={{ color: '#30D158' }}>5</span>
+            <span className={styles.kpiValue} style={{ color: '#30D158' }}>
+              {stats.available}
+            </span>
             <span className={styles.kpiChange}>🟢 Ready for tickets</span>
           </div>
         </div>
@@ -107,7 +169,9 @@ export default function Agents() {
         <div className={styles.kpiCard}>
           <span className={styles.kpiLabel}>Busy / Active Call</span>
           <div className={styles.kpiValueRow}>
-            <span className={styles.kpiValue} style={{ color: '#FFD60A' }}>4</span>
+            <span className={styles.kpiValue} style={{ color: '#FFD60A' }}>
+              {stats.busy}
+            </span>
             <span className={styles.kpiChange}>🔴 Handling tickets</span>
           </div>
         </div>
@@ -115,7 +179,9 @@ export default function Agents() {
         <div className={styles.kpiCard}>
           <span className={styles.kpiLabel}>Away / Offline</span>
           <div className={styles.kpiValueRow}>
-            <span className={styles.kpiValue} style={{ color: '#9ca3af' }}>3</span>
+            <span className={styles.kpiValue} style={{ color: '#9ca3af' }}>
+              {stats.awayOffline}
+            </span>
             <span className={styles.kpiChange}>⚪ Off shift</span>
           </div>
         </div>
@@ -154,9 +220,24 @@ export default function Agents() {
         </div>
       </div>
 
-      {/* Operational Agent Table (Strictly NO Leaderboards / Rankings) */}
+      {/* Error state with retry */}
+      {error && (
+        <div className={styles.errorBanner}>
+          <span>⚠️ {error}</span>
+          <button type="button" className={styles.retryBtn} onClick={fetchAgents}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Operational Agent Table (Live MongoDB Workload) */}
       <div className={styles.tableCard}>
-        {filteredAgents.length === 0 ? (
+        {isLoading ? (
+          <div className={styles.loadingContainer}>
+            <div className={styles.spinner} />
+            <p>Loading support agents and workload metrics from database...</p>
+          </div>
+        ) : agents.length === 0 ? (
           <div className={styles.emptyState}>
             <p>No agents match your search criteria.</p>
           </div>
@@ -176,11 +257,13 @@ export default function Agents() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAgents.map((agent) => (
-                  <tr key={agent.id}>
+                {agents.map((agent) => (
+                  <tr key={agent.id || agent._id}>
                     <td>
                       <div className={styles.agentCell}>
-                        <div className={styles.avatar}>{agent.name.slice(0, 2).toUpperCase()}</div>
+                        <div className={styles.avatar}>
+                          {agent.name ? agent.name.slice(0, 2).toUpperCase() : 'AG'}
+                        </div>
                         <div>
                           <strong className={styles.agentName}>{agent.name}</strong>
                           <span className={styles.agentEmail}>{agent.email}</span>
@@ -192,9 +275,11 @@ export default function Agents() {
                     </td>
                     <td>
                       <select
-                        className={`${styles.statusSelect} ${styles[agent.status.toLowerCase()]}`}
+                        className={`${styles.statusSelect} ${styles[agent.status.toLowerCase()] || ''}`}
                         value={agent.status}
-                        onChange={(e) => handleQuickStatusChange(agent.id, e.target.value)}
+                        onChange={(e) =>
+                          handleQuickStatusChange(agent.id || agent._id, e.target.value)
+                        }
                       >
                         <option value="Available">🟢 Available</option>
                         <option value="Busy">🔴 Busy</option>
@@ -240,15 +325,25 @@ export default function Agents() {
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>Agent Operational Profile</h3>
-              <button type="button" className={styles.closeBtn} onClick={() => setModalMode(null)}>✕</button>
+              <button
+                type="button"
+                className={styles.closeBtn}
+                onClick={() => setModalMode(null)}
+              >
+                ✕
+              </button>
             </div>
 
             <div className={styles.modalBody}>
               <div className={styles.agentProfileHead}>
-                <div className={styles.avatarLarge}>{selectedAgent.name.slice(0, 2).toUpperCase()}</div>
+                <div className={styles.avatarLarge}>
+                  {selectedAgent.name ? selectedAgent.name.slice(0, 2).toUpperCase() : 'AG'}
+                </div>
                 <div>
                   <h4 className={styles.profileName}>{selectedAgent.name}</h4>
-                  <p className={styles.profileSub}>{selectedAgent.role} • {selectedAgent.department}</p>
+                  <p className={styles.profileSub}>
+                    {selectedAgent.role} • {selectedAgent.department}
+                  </p>
                   <p className={styles.profileEmail}>{selectedAgent.email}</p>
                 </div>
               </div>
@@ -256,12 +351,16 @@ export default function Agents() {
               <div className={styles.detailGrid}>
                 <div className={styles.detailRow}>
                   <span>Current Availability</span>
-                  <strong style={{ color: selectedAgent.status === 'Available' ? '#30D158' : '#FFD60A' }}>
+                  <strong
+                    style={{
+                      color: selectedAgent.status === 'Available' ? '#30D158' : '#FFD60A',
+                    }}
+                  >
                     ● {selectedAgent.status}
                   </strong>
                 </div>
                 <div className={styles.detailRow}>
-                  <span>Assigned Workload</span>
+                  <span>Assigned Workload (Active)</span>
                   <strong>{selectedAgent.assigned} active tickets</strong>
                 </div>
                 <div className={styles.detailRow}>
@@ -271,6 +370,14 @@ export default function Agents() {
                 <div className={styles.detailRow}>
                   <span>Resolved Tickets</span>
                   <strong>{selectedAgent.resolved} completed</strong>
+                </div>
+                <div className={styles.detailRow}>
+                  <span>Closed Tickets</span>
+                  <strong>{selectedAgent.closed} closed</strong>
+                </div>
+                <div className={styles.detailRow}>
+                  <span>Total Assigned (All-time)</span>
+                  <strong>{selectedAgent.totalAssigned} tickets</strong>
                 </div>
                 <div className={styles.detailRow}>
                   <span>SLA Compliance Rate</span>
@@ -284,7 +391,11 @@ export default function Agents() {
             </div>
 
             <div className={styles.modalFooter}>
-              <button type="button" className={styles.closeModalBtn} onClick={() => setModalMode(null)}>
+              <button
+                type="button"
+                className={styles.closeModalBtn}
+                onClick={() => setModalMode(null)}
+              >
                 Close
               </button>
             </div>
@@ -294,11 +405,17 @@ export default function Agents() {
 
       {/* Edit Agent Modal */}
       {modalMode === 'edit' && selectedAgent && (
-        <div className={styles.modalBackdrop} onClick={() => setModalMode(null)}>
+        <div className={styles.modalBackdrop} onClick={() => !isSubmitting && setModalMode(null)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>Edit Support Agent Details</h3>
-              <button type="button" className={styles.closeBtn} onClick={() => setModalMode(null)}>✕</button>
+              <button
+                type="button"
+                className={styles.closeBtn}
+                onClick={() => !isSubmitting && setModalMode(null)}
+              >
+                ✕
+              </button>
             </div>
 
             <form onSubmit={handleSaveEdit}>
@@ -311,6 +428,7 @@ export default function Agents() {
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -322,6 +440,7 @@ export default function Agents() {
                     value={editForm.email}
                     onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -331,8 +450,11 @@ export default function Agents() {
                     type="text"
                     className={styles.input}
                     value={editForm.department}
-                    onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, department: e.target.value })
+                    }
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -344,6 +466,7 @@ export default function Agents() {
                     value={editForm.role}
                     onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -353,6 +476,7 @@ export default function Agents() {
                     className={styles.select}
                     value={editForm.status}
                     onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    disabled={isSubmitting}
                   >
                     <option value="Available">Available</option>
                     <option value="Busy">Busy</option>
@@ -363,11 +487,16 @@ export default function Agents() {
               </div>
 
               <div className={styles.modalFooter}>
-                <button type="button" className={styles.cancelBtn} onClick={() => setModalMode(null)}>
+                <button
+                  type="button"
+                  className={styles.cancelBtn}
+                  onClick={() => setModalMode(null)}
+                  disabled={isSubmitting}
+                >
                   Cancel
                 </button>
-                <button type="submit" className={styles.saveBtn}>
-                  Save Agent Changes
+                <button type="submit" className={styles.saveBtn} disabled={isSubmitting}>
+                  {isSubmitting ? 'Saving...' : 'Save Agent Changes'}
                 </button>
               </div>
             </form>

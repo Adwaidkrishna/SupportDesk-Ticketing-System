@@ -8,7 +8,7 @@ import agentRoutes from './routes/agent.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import knowledgeRoutes from './routes/knowledge.routes.js';
-
+import adminRoutes from './routes/admin.routes.js';
 
 const app = express();
 
@@ -63,6 +63,7 @@ app.use('/api/v1/agent', agentRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/knowledge-base', knowledgeRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
