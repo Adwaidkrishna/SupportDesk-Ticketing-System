@@ -17,6 +17,14 @@ import {
   validateUpdateCategory,
   validateUpdateCategoryStatus,
 } from '../validators/adminCategory.validator.js';
+import {
+  validateTicketQuery,
+  validateAdminTicketId,
+  validateAssignAgent,
+  validateUpdateStatus,
+  validateUpdatePriority,
+  validateAdminReply,
+} from '../validators/adminTicket.validator.js';
 import adminController from '../controllers/admin/index.js';
 
 const router = express.Router();
@@ -93,6 +101,61 @@ router.patch(
   validateCategoryId,
   validateUpdateCategoryStatus,
   adminController.updateCategoryStatus
+);
+
+// ─── Admin Tickets Endpoints ───────────────────────────────────────────────────
+
+// GET /api/v1/admin/tickets - List all tickets with search, filters, pagination
+router.get(
+  '/tickets',
+  validateTicketQuery,
+  adminController.getTickets
+);
+
+// GET /api/v1/admin/tickets/:ticketId - Ticket details with customer stats & related tickets
+router.get(
+  '/tickets/:ticketId',
+  validateAdminTicketId,
+  adminController.getTicketDetails
+);
+
+// PATCH /api/v1/admin/tickets/:ticketId/assign - Assign or unassign agent on ticket
+router.patch(
+  '/tickets/:ticketId/assign',
+  validateAdminTicketId,
+  validateAssignAgent,
+  adminController.assignTicketAgent
+);
+
+// PATCH /api/v1/admin/tickets/:ticketId/status - Update ticket status
+router.patch(
+  '/tickets/:ticketId/status',
+  validateAdminTicketId,
+  validateUpdateStatus,
+  adminController.updateTicketStatus
+);
+
+// PATCH /api/v1/admin/tickets/:ticketId/priority - Update ticket priority
+router.patch(
+  '/tickets/:ticketId/priority',
+  validateAdminTicketId,
+  validateUpdatePriority,
+  adminController.updateTicketPriority
+);
+
+// GET /api/v1/admin/tickets/:ticketId/messages - Retrieve conversation messages
+router.get(
+  '/tickets/:ticketId/messages',
+  validateAdminTicketId,
+  adminController.getTicketMessages
+);
+
+// POST /api/v1/admin/tickets/:ticketId/messages - Post official admin reply
+router.post(
+  '/tickets/:ticketId/messages',
+  validateAdminTicketId,
+  validateAdminReply,
+  adminController.sendAdminReply
 );
 
 export default router;

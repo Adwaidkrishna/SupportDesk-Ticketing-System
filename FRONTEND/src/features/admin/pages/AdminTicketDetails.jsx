@@ -1,6 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { sampleTicketDetails, adminAgentsList } from '../adminMockData';
+import {
+  getAdminTicketById,
+  assignTicketAgent,
+  updateTicketStatus,
+  updateTicketPriority,
+  getAdminTicketMessages,
+  sendAdminTicketMessage,
+} from '../services/adminTicket.service';
+import { getAdminAgents } from '../services/adminAgent.service';
 import Select from '../../../components/common/Select';
 import styles from './AdminTicketDetails.module.css';
 
@@ -8,125 +16,192 @@ export default function AdminTicketDetails() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
 
-  // Local ticket state initialized with sample data
-  const [ticket, setTicket] = useState({
-    ...sampleTicketDetails,
-    id: ticketId ? `#${ticketId}` : sampleTicketDetails.id,
-  });
+  // State
+  const [ticket, setTicket] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [agentsList, setAgentsList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Tab & Composer State
   const [activeTab, setActiveTab] = useState('reply'); // 'reply' | 'note'
   const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [internalNotes, setInternalNotes] = useState([]);
   const [noteText, setNoteText] = useState('');
   const [toastMsg, setToastMsg] = useState(null);
 
   const showToast = (msg) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+    setTimeout(() => setToastMsg(null), 3500);
   };
 
-  const handleSendReply = (e) => {
+  // Fetch ticket details and messages
+  const loadTicketData = useCallback(async () => {
+    if (!ticketId) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const [ticketRes, messagesRes, agentsRes] = await Promise.all([
+        getAdminTicketById(ticketId),
+        getAdminTicketMessages(ticketId).catch(() => ({ data: { messages: [] } })),
+        getAdminAgents().catch(() => ({ data: { agents: [] } })),
+      ]);
+
+      const ticketData = ticketRes?.data?.ticket;
+      if (!ticketData) {
+        throw new Error('Ticket not found.');
+      }
+
+      setTicket(ticketData);
+      setMessages(messagesRes?.data?.messages || []);
+      if (agentsRes?.data?.agents) {
+        setAgentsList(agentsRes.data.agents);
+      }
+    } catch (err) {
+      console.error('Failed to load admin ticket details:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load ticket details.');
+    } finally {
+      setLoading(false);
+    }
+  }, [ticketId]);
+
+  useEffect(() => {
+    loadTicketData();
+  }, [loadTicketData]);
+
+  // Handle Official Admin Reply
+  const handleSendReply = async (e) => {
     e.preventDefault();
-    if (!replyText.trim()) return;
+    if (!replyText.trim() || sendingReply) return;
 
-    const newMsg = {
-      id: `msg_${Date.now()}`,
-      sender: 'admin',
-      senderName: 'Alex Rivera (System Administrator)',
-      time: 'Just now',
-      text: replyText,
-      attachments: [],
-    };
+    setSendingReply(true);
+    try {
+      const res = await sendAdminTicketMessage(ticketId, replyText.trim());
+      const newMsg = res?.data?.message;
 
-    setTicket((prev) => ({
-      ...prev,
-      conversation: [...prev.conversation, newMsg],
-      timeline: [
-        ...prev.timeline,
-        { event: 'Admin Alex Rivera posted official response', time: 'Just now' },
-      ],
-      updated: 'Just now',
-    }));
-
-    setReplyText('');
-    showToast('Admin response sent to customer.');
+      if (newMsg) {
+        setMessages((prev) => [...prev, newMsg]);
+      }
+      setReplyText('');
+      showToast('Official admin response sent to customer.');
+    } catch (err) {
+      console.error('Failed to send admin reply:', err);
+      showToast(err?.response?.data?.message || err?.message || 'Failed to send reply.');
+    } finally {
+      setSendingReply(false);
+    }
   };
 
+  // Handle Internal Private Note
   const handleAddInternalNote = (e) => {
     e.preventDefault();
     if (!noteText.trim()) return;
 
     const newNote = {
       id: `note_${Date.now()}`,
-      author: 'Alex Rivera (Admin)',
+      author: 'Administrator',
       time: 'Just now',
-      text: noteText,
+      text: noteText.trim(),
     };
 
-    setTicket((prev) => ({
-      ...prev,
-      internalNotes: [...prev.internalNotes, newNote],
-      timeline: [
-        ...prev.timeline,
-        { event: 'Admin added an internal system note', time: 'Just now' },
-      ],
-      updated: 'Just now',
-    }));
-
+    setInternalNotes((prev) => [...prev, newNote]);
     setNoteText('');
-    showToast('Internal note saved.');
+    showToast('Internal confidential note saved.');
   };
 
-  const handleStatusChange = (newStatus) => {
-    setTicket((prev) => ({
-      ...prev,
-      status: newStatus,
-      timeline: [
-        ...prev.timeline,
-        { event: `Status updated to ${newStatus} by Admin`, time: 'Just now' },
-      ],
-      updated: 'Just now',
-    }));
-    showToast(`Status changed to ${newStatus}`);
+  // Control Actions
+  const handleStatusChange = async (newStatus) => {
+    try {
+      const res = await updateTicketStatus(ticketId, newStatus);
+      const updatedTicket = res?.data?.ticket;
+      setTicket((prev) => ({ ...prev, ...updatedTicket }));
+      showToast(`Status updated to ${newStatus}.`);
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      showToast(err?.response?.data?.message || err?.message || 'Failed to update status.');
+    }
   };
 
-  const handlePriorityChange = (newPriority) => {
-    setTicket((prev) => ({
-      ...prev,
-      priority: newPriority,
-      timeline: [
-        ...prev.timeline,
-        { event: `Priority updated to ${newPriority} by Admin`, time: 'Just now' },
-      ],
-      updated: 'Just now',
-    }));
-    showToast(`Priority updated to ${newPriority}`);
+  const handlePriorityChange = async (newPriority) => {
+    try {
+      const res = await updateTicketPriority(ticketId, newPriority);
+      const updatedTicket = res?.data?.ticket;
+      setTicket((prev) => ({ ...prev, ...updatedTicket }));
+      showToast(`Priority updated to ${newPriority}.`);
+    } catch (err) {
+      console.error('Failed to update priority:', err);
+      showToast(err?.response?.data?.message || err?.message || 'Failed to update priority.');
+    }
   };
 
-  const handleAgentReassign = (newAgent) => {
-    setTicket((prev) => ({
-      ...prev,
-      assignedAgent: newAgent,
-      timeline: [
-        ...prev.timeline,
-        { event: `Reassigned to ${newAgent} by Admin`, time: 'Just now' },
-      ],
-      updated: 'Just now',
-    }));
-    showToast(`Ticket reassigned to ${newAgent}`);
+  const handleAgentReassign = async (newAgentId) => {
+    try {
+      const agentTarget = newAgentId === 'unassigned' || !newAgentId ? null : newAgentId;
+      const res = await assignTicketAgent(ticketId, agentTarget);
+      const updatedTicket = res?.data?.ticket;
+      setTicket((prev) => ({ ...prev, ...updatedTicket }));
+      showToast(agentTarget ? 'Ticket reassigned to agent.' : 'Ticket unassigned.');
+    } catch (err) {
+      console.error('Failed to reassign agent:', err);
+      showToast(err?.response?.data?.message || err?.message || 'Failed to reassign agent.');
+    }
   };
 
   const handleEscalate = () => {
-    setTicket((prev) => ({
-      ...prev,
-      priority: 'Critical',
-      timeline: [
-        ...prev.timeline,
-        { event: 'Escalated to Tier 3 Executive Admin', time: 'Just now' },
-      ],
-      updated: 'Just now',
-    }));
-    showToast('Ticket escalated to Critical priority!');
+    handlePriorityChange('URGENT');
   };
+
+  const formatDateTime = (val) => {
+    if (!val) return 'N/A';
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return val;
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.loadingContainer}>
+          <div className={styles.spinner} />
+          <p>Loading ticket details and conversation...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !ticket) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.topNavRow}>
+          <button
+            type="button"
+            className={styles.backBtn}
+            onClick={() => navigate('/admin/tickets')}
+          >
+            ← Back to All Tickets
+          </button>
+        </div>
+        <div className={styles.errorBanner}>
+          <span>{error || 'Ticket not found.'}</span>
+          <button type="button" className={styles.retryBtn} onClick={loadTicketData}>
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const ticketNumberStr = ticket.ticketNumber || ticket.id || ticket._id;
+  const priorityLower = (ticket.priority || 'medium').toLowerCase();
+  const currentAssignedAgentId = ticket.assignedTo?._id || ticket.assignedTo?.id || 'unassigned';
 
   return (
     <div className={styles.page}>
@@ -156,77 +231,86 @@ export default function AdminTicketDetails() {
       <div className={styles.banner}>
         <div className={styles.bannerHeader}>
           <div className={styles.bannerTitleGroup}>
-            <span className={styles.ticketIdPill}>{ticket.id}</span>
+            <span className={styles.ticketIdPill}>#{ticketNumberStr}</span>
             <h1 className={styles.bannerSubject}>{ticket.subject}</h1>
           </div>
 
           <div className={styles.bannerBadges}>
-            <span className={`${styles.priorityBadge} ${styles[ticket.priority.toLowerCase()]}`}>
+            <span className={`${styles.priorityBadge} ${styles[priorityLower] || ''}`}>
               {ticket.priority} Priority
             </span>
             <span className={styles.statusPill}>{ticket.status}</span>
-            <span className={styles.slaBadge}>⏰ {ticket.slaTimeRemaining}</span>
           </div>
         </div>
       </div>
 
       {/* 2-Column Workspace Grid */}
       <div className={styles.workspaceGrid}>
-        {/* Left Column: Conversation, Notes, Composer */}
+        {/* Left Column: Description, Conversation, Notes, Composer */}
         <div className={styles.leftCol}>
+          {/* Ticket Description Box */}
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <h3 className={styles.cardTitle}>Issue Description</h3>
+              <span className={styles.countTag}>Opened {formatDateTime(ticket.createdAt)}</span>
+            </div>
+            <p className={styles.cardDesc} style={{ whiteSpace: 'pre-wrap', color: '#e5e7eb', marginTop: '0.5rem' }}>
+              {ticket.description}
+            </p>
+          </div>
+
           {/* Conversation Thread */}
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <h3 className={styles.cardTitle}>Customer & Agent Messages</h3>
-              <span className={styles.countTag}>{ticket.conversation.length} Messages</span>
+              <span className={styles.countTag}>{messages.length} Messages</span>
             </div>
 
             <div className={styles.messagesList}>
-              {ticket.conversation.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`${styles.msgBubble} ${
-                    msg.sender === 'customer'
-                      ? styles.customerBubble
-                      : msg.sender === 'admin'
-                      ? styles.adminBubble
-                      : styles.agentBubble
-                  }`}
-                >
-                  <div className={styles.msgHeader}>
-                    <strong className={styles.msgSender}>{msg.senderName}</strong>
-                    <span className={styles.msgTime}>{msg.time}</span>
-                  </div>
+              {messages.length === 0 ? (
+                <p style={{ color: '#9ca3af', padding: '1rem 0' }}>No messages posted yet on this ticket.</p>
+              ) : (
+                messages.map((msg) => {
+                  const isCustomer = msg.senderRole === 'customer';
+                  const isAdmin = msg.senderRole === 'admin';
+                  const bubbleStyle = isCustomer
+                    ? styles.customerBubble
+                    : isAdmin
+                    ? styles.adminBubble
+                    : styles.agentBubble;
 
-                  <p className={styles.msgText}>{msg.text}</p>
+                  return (
+                    <div
+                      key={msg.id || msg._id}
+                      className={`${styles.msgBubble} ${bubbleStyle}`}
+                    >
+                      <div className={styles.msgHeader}>
+                        <strong className={styles.msgSender}>
+                          {msg.senderName || msg.sender?.name || (isAdmin ? 'Administrator' : 'User')}
+                        </strong>
+                        <span className={styles.msgTime}>{formatDateTime(msg.createdAt)}</span>
+                      </div>
 
-                  {msg.attachments && msg.attachments.length > 0 && (
-                    <div className={styles.attachmentsRow}>
-                      {msg.attachments.map((att) => (
-                        <div key={att.name} className={styles.attachmentChip}>
-                          <span>📎 {att.name}</span>
-                          <small>({att.size})</small>
-                        </div>
-                      ))}
+                      <p className={styles.msgText}>{msg.text || msg.body}</p>
                     </div>
-                  )}
-                </div>
-              ))}
+                  );
+                })
+              )}
             </div>
           </div>
 
-          {/* Internal Notes Container (Visually Isolated Amber Box) */}
+          {/* Confidential Internal Notes Container */}
           <div className={styles.internalNotesContainer}>
             <div className={styles.internalNotesHeader}>
               <h3 className={styles.internalNotesTitle}>🔒 Confidential Internal Team Notes</h3>
               <span className={styles.internalBadge}>Visible to Agents & Admins only</span>
             </div>
 
-            {ticket.internalNotes.length === 0 ? (
-              <p className={styles.noNotesText}>No internal notes logged for this ticket yet.</p>
+            {internalNotes.length === 0 ? (
+              <p className={styles.noNotesText}>No internal notes logged for this session yet.</p>
             ) : (
               <div className={styles.notesList}>
-                {ticket.internalNotes.map((note) => (
+                {internalNotes.map((note) => (
                   <div key={note.id} className={styles.noteItem}>
                     <div className={styles.noteMeta}>
                       <strong>{note.author}</strong>
@@ -263,16 +347,21 @@ export default function AdminTicketDetails() {
                 <textarea
                   className={styles.textarea}
                   rows={4}
-                  placeholder="Write an official customer-facing response..."
+                  placeholder="Write an official customer-facing response as Administrator..."
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
+                  disabled={sendingReply}
                 />
                 <div className={styles.composerFooter}>
-                  <button type="button" className={styles.attachBtn} onClick={() => showToast('File attachment mock triggered.')}>
-                    📎 Attach file
-                  </button>
-                  <button type="submit" className={styles.sendReplyBtn}>
-                    Send Reply
+                  <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>
+                    Reply will be dispatched to the customer in real-time.
+                  </span>
+                  <button
+                    type="submit"
+                    className={styles.sendReplyBtn}
+                    disabled={sendingReply || !replyText.trim()}
+                  >
+                    {sendingReply ? 'Sending...' : 'Send Official Reply'}
                   </button>
                 </div>
               </form>
@@ -287,26 +376,12 @@ export default function AdminTicketDetails() {
                 />
                 <div className={styles.composerFooter}>
                   <span className={styles.confidentialInfo}>Notes are never shared with customers.</span>
-                  <button type="submit" className={styles.saveNoteBtn}>
+                  <button type="submit" className={styles.saveNoteBtn} disabled={!noteText.trim()}>
                     Add Internal Note
                   </button>
                 </div>
               </form>
             )}
-          </div>
-
-          {/* Activity Timeline */}
-          <div className={styles.card}>
-            <h3 className={styles.cardTitle}>Ticket Audit Timeline</h3>
-            <div className={styles.timeline}>
-              {ticket.timeline.map((item, i) => (
-                <div key={i} className={styles.timelineItem}>
-                  <span className={styles.timelineDot} />
-                  <span className={styles.timelineEvent}>{item.event}</span>
-                  <span className={styles.timelineTime}>{item.time}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -323,13 +398,12 @@ export default function AdminTicketDetails() {
                 <Select
                   label="Change Status"
                   options={[
-                    { value: 'Open', label: 'Open', subtitle: 'New unhandled ticket', badge: 'Open', badgeColor: '#0A84FF' },
-                    { value: 'In Progress', label: 'In Progress', subtitle: 'Under investigation', badge: 'Active', badgeColor: '#FFD60A' },
-                    { value: 'Waiting for Customer', label: 'Waiting for Customer', subtitle: 'Awaiting customer input', badge: 'Waiting', badgeColor: '#FF9F0A' },
-                    { value: 'Resolved', label: 'Resolved', subtitle: 'Resolved ticket', badge: 'Resolved', badgeColor: '#30D158' },
-                    { value: 'Closed', label: 'Closed', subtitle: 'Closed ticket', badge: 'Closed', badgeColor: '#64748B' },
+                    { value: 'OPEN', label: 'OPEN', subtitle: 'New unhandled ticket', badge: 'Open', badgeColor: '#0A84FF' },
+                    { value: 'IN_PROGRESS', label: 'IN_PROGRESS', subtitle: 'Under investigation', badge: 'Active', badgeColor: '#FFD60A' },
+                    { value: 'RESOLVED', label: 'RESOLVED', subtitle: 'Resolved ticket', badge: 'Resolved', badgeColor: '#30D158' },
+                    { value: 'CLOSED', label: 'CLOSED', subtitle: 'Closed ticket', badge: 'Closed', badgeColor: '#64748B' },
                   ]}
-                  value={ticket.status}
+                  value={ticket.status || 'OPEN'}
                   onChange={handleStatusChange}
                 />
               </div>
@@ -339,12 +413,12 @@ export default function AdminTicketDetails() {
                 <Select
                   label="Change Priority"
                   options={[
-                    { value: 'Critical', label: 'Critical', subtitle: 'System outage / Blocker', badge: 'P1', badgeColor: '#FF453A' },
-                    { value: 'High', label: 'High', subtitle: 'High severity impact', badge: 'P2', badgeColor: '#FF9F0A' },
-                    { value: 'Medium', label: 'Medium', subtitle: 'Standard ticket', badge: 'P3', badgeColor: '#64D2FF' },
-                    { value: 'Low', label: 'Low', subtitle: 'Low priority task', badge: 'P4', badgeColor: '#94A3B8' },
+                    { value: 'URGENT', label: 'URGENT', subtitle: 'Blocker / Outage', badge: 'P1', badgeColor: '#FF453A' },
+                    { value: 'HIGH', label: 'HIGH', subtitle: 'High severity impact', badge: 'P2', badgeColor: '#FF9F0A' },
+                    { value: 'MEDIUM', label: 'MEDIUM', subtitle: 'Standard ticket', badge: 'P3', badgeColor: '#64D2FF' },
+                    { value: 'LOW', label: 'LOW', subtitle: 'Low priority task', badge: 'P4', badgeColor: '#94A3B8' },
                   ]}
-                  value={ticket.priority}
+                  value={ticket.priority || 'MEDIUM'}
                   onChange={handlePriorityChange}
                 />
               </div>
@@ -354,16 +428,15 @@ export default function AdminTicketDetails() {
                 <Select
                   label="Assign Agent"
                   options={[
-                    { value: 'Unassigned', label: 'Unassigned', subtitle: 'No agent assigned', initials: 'UN' },
-                    ...adminAgentsList.map((a) => ({
-                      value: a.name,
+                    { value: 'unassigned', label: 'Unassigned', subtitle: 'No agent assigned', initials: 'UN' },
+                    ...agentsList.map((a) => ({
+                      value: a.id || a._id,
                       label: a.name,
-                      subtitle: a.department,
-                      initials: a.initials || a.name.split(' ').map((n) => n[0]).join(''),
-                      badge: a.role,
+                      subtitle: a.department || 'General',
+                      initials: a.name ? a.name.split(' ').map((n) => n[0]).join('') : 'AG',
                     })),
                   ]}
-                  value={ticket.assignedAgent}
+                  value={currentAssignedAgentId}
                   onChange={handleAgentReassign}
                 />
               </div>
@@ -374,12 +447,12 @@ export default function AdminTicketDetails() {
                   className={styles.escalateBtn}
                   onClick={handleEscalate}
                 >
-                  ⚡ Escalate to Critical
+                  ⚡ Escalate to Urgent
                 </button>
                 <button
                   type="button"
                   className={styles.resolveBtn}
-                  onClick={() => handleStatusChange('Resolved')}
+                  onClick={() => handleStatusChange('RESOLVED')}
                 >
                   ✓ Mark as Resolved
                 </button>
@@ -393,19 +466,19 @@ export default function AdminTicketDetails() {
             <div className={styles.metaGrid}>
               <div className={styles.metaRow}>
                 <span className={styles.metaLabel}>Category</span>
-                <span className={styles.metaVal}>{ticket.category}</span>
+                <span className={styles.metaVal}>{ticket.category?.name || 'General'}</span>
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.metaLabel}>Created Date</span>
-                <span className={styles.metaVal}>{ticket.created}</span>
+                <span className={styles.metaVal}>{formatDateTime(ticket.createdAt)}</span>
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.metaLabel}>Last Updated</span>
-                <span className={styles.metaVal}>{ticket.updated}</span>
+                <span className={styles.metaVal}>{formatDateTime(ticket.updatedAt)}</span>
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.metaLabel}>Assigned Agent</span>
-                <span className={styles.metaVal}>{ticket.assignedAgent}</span>
+                <span className={styles.metaVal}>{ticket.assignedTo?.name || 'Unassigned'}</span>
               </div>
             </div>
           </div>
@@ -414,48 +487,49 @@ export default function AdminTicketDetails() {
           <div className={styles.card}>
             <h3 className={styles.cardTitle}>Customer Information</h3>
             <div className={styles.customerBox}>
-              <div className={styles.customerAvatar}>{ticket.customer.avatar}</div>
+              <div className={styles.customerAvatar}>
+                {ticket.customer?.name
+                  ? ticket.customer.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+                  : 'CU'}
+              </div>
               <div>
-                <strong className={styles.customerName}>{ticket.customer.name}</strong>
-                <span className={styles.customerEmail}>{ticket.customer.email}</span>
-                <span className={styles.customerCompany}>{ticket.customer.company}</span>
+                <strong className={styles.customerName}>{ticket.customer?.name || 'Customer'}</strong>
+                <span className={styles.customerEmail}>{ticket.customer?.email || 'N/A'}</span>
+                <span className={styles.customerCompany}>{ticket.customer?.phone || ticket.customer?.company || ''}</span>
               </div>
             </div>
 
             <div className={styles.metaGrid} style={{ marginTop: '0.75rem' }}>
               <div className={styles.metaRow}>
                 <span className={styles.metaLabel}>Total Customer Tickets</span>
-                <span className={styles.metaVal}>12 Tickets</span>
+                <span className={styles.metaVal}>{ticket.customer?.totalTickets || 1} Tickets</span>
               </div>
               <div className={styles.metaRow}>
                 <span className={styles.metaLabel}>Open Tickets</span>
-                <span className={styles.metaVal}>2 Open</span>
+                <span className={styles.metaVal}>{ticket.customer?.openTickets || 0} Open</span>
               </div>
             </div>
           </div>
 
           {/* Related Customer Tickets */}
-          <div className={styles.card}>
-            <h3 className={styles.cardTitle}>Related Tickets</h3>
-            <div className={styles.relatedList}>
-              <div
-                className={styles.relatedItem}
-                onClick={() => navigate('/admin/tickets/1015')}
-              >
-                <span className={styles.relatedId}>#1015</span>
-                <span className={styles.relatedSub}>Password reset issue</span>
-                <span className={styles.relatedStatus}>Resolved</span>
-              </div>
-              <div
-                className={styles.relatedItem}
-                onClick={() => navigate('/admin/tickets/1004')}
-              >
-                <span className={styles.relatedId}>#1004</span>
-                <span className={styles.relatedSub}>Production login failure</span>
-                <span className={styles.relatedStatus}>In Progress</span>
+          {ticket.relatedTickets && ticket.relatedTickets.length > 0 && (
+            <div className={styles.card}>
+              <h3 className={styles.cardTitle}>Related Tickets</h3>
+              <div className={styles.relatedList}>
+                {ticket.relatedTickets.map((rel) => (
+                  <div
+                    key={rel.id || rel.ticketNumber}
+                    className={styles.relatedItem}
+                    onClick={() => navigate(`/admin/tickets/${rel.ticketNumber || rel.id}`)}
+                  >
+                    <span className={styles.relatedId}>#{rel.ticketNumber}</span>
+                    <span className={styles.relatedSub}>{rel.subject}</span>
+                    <span className={styles.relatedStatus}>{rel.status}</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

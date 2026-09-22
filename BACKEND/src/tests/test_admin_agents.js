@@ -344,7 +344,7 @@ async function runTests() {
   if (testCat.name === `TestCat ${ts}`) {
     await Category.deleteOne({ _id: testCat._id });
   }
-  server.close();
+  await new Promise((resolve) => server.close(resolve));
   await mongoose.disconnect();
   console.log('  Cleaned up test records from MongoDB.');
 

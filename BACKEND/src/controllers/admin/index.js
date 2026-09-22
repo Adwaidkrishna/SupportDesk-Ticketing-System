@@ -8,6 +8,13 @@ import getCategories from './getCategories.controller.js';
 import createCategory from './createCategory.controller.js';
 import updateCategory from './updateCategory.controller.js';
 import updateCategoryStatus from './updateCategoryStatus.controller.js';
+import getTickets from './getTickets.controller.js';
+import getTicketDetails from './getTicketDetails.controller.js';
+import assignTicketAgent from './assignTicketAgent.controller.js';
+import updateTicketStatus from './updateTicketStatus.controller.js';
+import updateTicketPriority from './updateTicketPriority.controller.js';
+import getTicketMessages from './getTicketMessages.controller.js';
+import sendAdminReply from './sendAdminReply.controller.js';
 
 export {
   getUsers,
@@ -20,6 +27,13 @@ export {
   createCategory,
   updateCategory,
   updateCategoryStatus,
+  getTickets,
+  getTicketDetails,
+  assignTicketAgent,
+  updateTicketStatus,
+  updateTicketPriority,
+  getTicketMessages,
+  sendAdminReply,
 };
 
 export default {
@@ -33,4 +47,11 @@ export default {
   createCategory,
   updateCategory,
   updateCategoryStatus,
+  getTickets,
+  getTicketDetails,
+  assignTicketAgent,
+  updateTicketStatus,
+  updateTicketPriority,
+  getTicketMessages,
+  sendAdminReply,
 };

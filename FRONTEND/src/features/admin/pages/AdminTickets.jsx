@@ -1,24 +1,38 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminAllTickets, adminAgentsList } from '../adminMockData';
+import {
+  getAdminTickets,
+  assignTicketAgent,
+  updateTicketStatus,
+  updateTicketPriority,
+} from '../services/adminTicket.service';
+import { getAdminAgents } from '../services/adminAgent.service';
+import { getAdminCategories } from '../services/adminCategory.service';
 import Select from '../../../components/common/Select';
 import styles from './AdminTickets.module.css';
 
 export default function AdminTickets() {
   const navigate = useNavigate();
 
-  const [tickets, setTickets] = useState(adminAllTickets);
+  // Data state
+  const [tickets, setTickets] = useState([]);
+  const [agentsList, setAgentsList] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Filters state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [agentFilter, setAgentFilter] = useState('all');
-  const [slaFilter, setSlaFilter] = useState('all');
 
   // Modal State for Quick Actions
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [actionModalType, setActionModalType] = useState(null); // 'reassign' | 'priority' | 'status'
   const [modalValue, setModalValue] = useState('');
+  const [modalSubmitting, setModalSubmitting] = useState(false);
   const [toastMsg, setToastMsg] = useState(null);
 
   const showToast = (msg) => {
@@ -26,52 +40,131 @@ export default function AdminTickets() {
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  // Filter Logic
-  const filteredTickets = tickets.filter((t) => {
-    const matchesSearch =
-      t.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.agent.toLowerCase().includes(searchTerm.toLowerCase());
+  // Fetch initial dropdown references (agents & categories)
+  useEffect(() => {
+    let isMounted = true;
 
-    const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || t.priority === priorityFilter;
-    const matchesCategory = categoryFilter === 'all' || t.category === categoryFilter;
-    const matchesAgent = agentFilter === 'all' || t.agent === agentFilter;
+    async function fetchDropdownData() {
+      try {
+        const [agentsRes, catsRes] = await Promise.all([
+          getAdminAgents().catch(() => null),
+          getAdminCategories().catch(() => null),
+        ]);
 
-    let matchesSla = true;
-    if (slaFilter === 'at_risk') matchesSla = t.sla.toLowerCase().includes('risk');
-    if (slaFilter === 'breached') matchesSla = t.sla.toLowerCase().includes('breached');
-    if (slaFilter === 'within') matchesSla = !t.sla.toLowerCase().includes('risk') && !t.sla.toLowerCase().includes('breached');
+        if (isMounted) {
+          if (agentsRes?.data?.agents) {
+            setAgentsList(agentsRes.data.agents);
+          }
+          if (catsRes?.data?.categories) {
+            setCategoriesList(catsRes.data.categories);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load filter options:', err);
+      }
+    }
 
-    return matchesSearch && matchesStatus && matchesPriority && matchesCategory && matchesAgent && matchesSla;
-  });
+    fetchDropdownData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Fetch tickets from backend with query parameters
+  const fetchTickets = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = {
+        page: 1,
+        limit: 100,
+      };
+
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (priorityFilter !== 'all') params.priority = priorityFilter;
+      if (categoryFilter !== 'all') params.categoryId = categoryFilter;
+      if (agentFilter !== 'all') params.agentId = agentFilter;
+
+      const response = await getAdminTickets(params);
+      const data = response?.data?.tickets || [];
+      setTickets(data);
+    } catch (err) {
+      console.error('Failed to load admin tickets:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load tickets. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchTerm, statusFilter, priorityFilter, categoryFilter, agentFilter]);
+
+  useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
 
   const handleOpenActionModal = (ticket, type) => {
     setSelectedTicket(ticket);
     setActionModalType(type);
-    if (type === 'reassign') setModalValue(ticket.agent);
-    if (type === 'priority') setModalValue(ticket.priority);
-    if (type === 'status') setModalValue(ticket.status);
+    if (type === 'reassign') {
+      const currentAgentId = ticket.assignedTo?._id || ticket.assignedTo?.id || 'unassigned';
+      setModalValue(currentAgentId);
+    }
+    if (type === 'priority') setModalValue(ticket.priority || 'MEDIUM');
+    if (type === 'status') setModalValue(ticket.status || 'OPEN');
   };
 
-  const handleSaveModalAction = () => {
-    if (!selectedTicket) return;
+  const handleSaveModalAction = async () => {
+    if (!selectedTicket || modalSubmitting) return;
 
-    setTickets((prev) =>
-      prev.map((t) => {
-        if (t.id === selectedTicket.id) {
-          if (actionModalType === 'reassign') return { ...t, agent: modalValue, updated: 'Just now' };
-          if (actionModalType === 'priority') return { ...t, priority: modalValue, updated: 'Just now' };
-          if (actionModalType === 'status') return { ...t, status: modalValue, updated: 'Just now' };
-        }
-        return t;
-      })
-    );
+    setModalSubmitting(true);
+    try {
+      const ticketId = selectedTicket.ticketNumber || selectedTicket.id || selectedTicket._id;
 
-    showToast(`Ticket ${selectedTicket.id} updated successfully!`);
-    setActionModalType(null);
-    setSelectedTicket(null);
+      if (actionModalType === 'reassign') {
+        const targetAgentId = modalValue === 'unassigned' || !modalValue ? null : modalValue;
+        const res = await assignTicketAgent(ticketId, targetAgentId);
+        const updatedTicket = res?.data?.ticket;
+
+        setTickets((prev) =>
+          prev.map((t) => (t.id === selectedTicket.id ? { ...t, ...updatedTicket } : t))
+        );
+        showToast(`Ticket #${ticketId} reassigned successfully.`);
+      } else if (actionModalType === 'priority') {
+        const res = await updateTicketPriority(ticketId, modalValue);
+        const updatedTicket = res?.data?.ticket;
+
+        setTickets((prev) =>
+          prev.map((t) => (t.id === selectedTicket.id ? { ...t, ...updatedTicket } : t))
+        );
+        showToast(`Ticket #${ticketId} priority updated to ${modalValue}.`);
+      } else if (actionModalType === 'status') {
+        const res = await updateTicketStatus(ticketId, modalValue);
+        const updatedTicket = res?.data?.ticket;
+
+        setTickets((prev) =>
+          prev.map((t) => (t.id === selectedTicket.id ? { ...t, ...updatedTicket } : t))
+        );
+        showToast(`Ticket #${ticketId} status updated to ${modalValue}.`);
+      }
+
+      setActionModalType(null);
+      setSelectedTicket(null);
+    } catch (err) {
+      console.error('Failed to update ticket:', err);
+      showToast(err?.response?.data?.message || err?.message || 'Failed to update ticket.');
+    } finally {
+      setModalSubmitting(false);
+    }
+  };
+
+  const formatTicketDate = (dateVal) => {
+    if (!dateVal) return 'Recently';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return dateVal;
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
   };
 
   return (
@@ -113,7 +206,7 @@ export default function AdminTickets() {
               className={styles.searchInput}
             />
           </div>
-          <span className={styles.countBadge}>{filteredTickets.length} Tickets Found</span>
+          <span className={styles.countBadge}>{tickets.length} Tickets Found</span>
         </div>
 
         <div className={styles.filtersGrid}>
@@ -122,11 +215,10 @@ export default function AdminTickets() {
             label="Status"
             options={[
               { value: 'all', label: 'All Statuses' },
-              { value: 'Open', label: 'Open', badge: 'Open', badgeColor: '#0A84FF' },
-              { value: 'In Progress', label: 'In Progress', badge: 'Active', badgeColor: '#FFD60A' },
-              { value: 'Waiting for Customer', label: 'Waiting for Customer', badge: 'Waiting', badgeColor: '#FF9F0A' },
-              { value: 'Resolved', label: 'Resolved', badge: 'Resolved', badgeColor: '#30D158' },
-              { value: 'Closed', label: 'Closed', badge: 'Closed', badgeColor: '#64748B' },
+              { value: 'OPEN', label: 'Open', badge: 'Open', badgeColor: '#0A84FF' },
+              { value: 'IN_PROGRESS', label: 'In Progress', badge: 'Active', badgeColor: '#FFD60A' },
+              { value: 'RESOLVED', label: 'Resolved', badge: 'Resolved', badgeColor: '#30D158' },
+              { value: 'CLOSED', label: 'Closed', badge: 'Closed', badgeColor: '#64748B' },
             ]}
             value={statusFilter}
             onChange={setStatusFilter}
@@ -137,10 +229,10 @@ export default function AdminTickets() {
             label="Priority"
             options={[
               { value: 'all', label: 'All Priorities' },
-              { value: 'Critical', label: 'Critical', badge: 'P1', badgeColor: '#FF453A' },
-              { value: 'High', label: 'High', badge: 'P2', badgeColor: '#FF9F0A' },
-              { value: 'Medium', label: 'Medium', badge: 'P3', badgeColor: '#64D2FF' },
-              { value: 'Low', label: 'Low', badge: 'P4', badgeColor: '#94A3B8' },
+              { value: 'URGENT', label: 'Urgent', badge: 'P1', badgeColor: '#FF453A' },
+              { value: 'HIGH', label: 'High', badge: 'P2', badgeColor: '#FF9F0A' },
+              { value: 'MEDIUM', label: 'Medium', badge: 'P3', badgeColor: '#64D2FF' },
+              { value: 'LOW', label: 'Low', badge: 'P4', badgeColor: '#94A3B8' },
             ]}
             value={priorityFilter}
             onChange={setPriorityFilter}
@@ -151,10 +243,10 @@ export default function AdminTickets() {
             label="Category"
             options={[
               { value: 'all', label: 'All Categories' },
-              { value: 'Account & Billing', label: 'Account & Billing' },
-              { value: 'Infrastructure', label: 'Infrastructure' },
-              { value: 'Integrations', label: 'Integrations' },
-              { value: 'Security', label: 'Security' },
+              ...categoriesList.map((cat) => ({
+                value: cat.id || cat._id,
+                label: cat.name,
+              })),
             ]}
             value={categoryFilter}
             onChange={setCategoryFilter}
@@ -166,35 +258,37 @@ export default function AdminTickets() {
             options={[
               { value: 'all', label: 'All Agents' },
               { value: 'unassigned', label: 'Unassigned', initials: 'UN' },
-              ...adminAgentsList.map((a) => ({
-                value: a.name,
+              ...agentsList.map((a) => ({
+                value: a.id || a._id,
                 label: a.name,
                 subtitle: a.department,
-                initials: a.initials || a.name.split(' ').map((n) => n[0]).join(''),
+                initials: a.name ? a.name.split(' ').map((n) => n[0]).join('') : 'AG',
               })),
             ]}
             value={agentFilter}
             onChange={setAgentFilter}
           />
-
-          {/* SLA Status Filter */}
-          <Select
-            label="SLA Status"
-            options={[
-              { value: 'all', label: 'All SLA Statuses' },
-              { value: 'within', label: 'Within SLA', badge: 'OK', badgeColor: '#30D158' },
-              { value: 'risk', label: 'At Risk', badge: 'Risk', badgeColor: '#FF9F0A' },
-              { value: 'breached', label: 'Breached', badge: 'Breached', badgeColor: '#FF453A' },
-            ]}
-            value={slaFilter}
-            onChange={setSlaFilter}
-          />
         </div>
       </div>
 
-      {/* Main Table / Mobile Cards */}
+      {/* Error Banner */}
+      {error && (
+        <div className={styles.errorBanner}>
+          <span>{error}</span>
+          <button type="button" className={styles.retryBtn} onClick={fetchTickets}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Main Table / Mobile Cards / Loading */}
       <div className={styles.tableCard}>
-        {filteredTickets.length === 0 ? (
+        {loading ? (
+          <div className={styles.loadingContainer}>
+            <div className={styles.spinner} />
+            <p>Loading tickets from database...</p>
+          </div>
+        ) : tickets.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>🔍</div>
             <h3 className={styles.emptyTitle}>No matching tickets</h3>
@@ -208,7 +302,6 @@ export default function AdminTickets() {
                 setPriorityFilter('all');
                 setCategoryFilter('all');
                 setAgentFilter('all');
-                setSlaFilter('all');
               }}
             >
               Reset All Filters
@@ -228,133 +321,133 @@ export default function AdminTickets() {
                     <th>Category</th>
                     <th>Priority</th>
                     <th>Status</th>
-                    <th>SLA Target</th>
                     <th>Updated</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTickets.map((t) => (
-                    <tr key={t.id} className={styles.tableRow}>
-                      <td>
-                        <span
-                          className={styles.ticketId}
-                          onClick={() => navigate(`/admin/tickets/${t.id.replace('#', '')}`)}
-                        >
-                          {t.id}
-                        </span>
-                      </td>
-                      <td>
-                        <strong
-                          className={styles.subjectText}
-                          onClick={() => navigate(`/admin/tickets/${t.id.replace('#', '')}`)}
-                        >
-                          {t.subject}
-                        </strong>
-                      </td>
-                      <td>
-                        <div className={styles.metaCell}>
-                          <span>{t.customer}</span>
-                          <small className={styles.subText}>{t.customerEmail}</small>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={styles.agentTag}>{t.agent}</span>
-                      </td>
-                      <td>
-                        <span className={styles.categoryPill}>{t.category}</span>
-                      </td>
-                      <td>
-                        <span className={`${styles.priorityBadge} ${styles[t.priority.toLowerCase()]}`}>
-                          {t.priority}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={styles.statusPill}>{t.status}</span>
-                      </td>
-                      <td>
-                        <span
-                          className={`${styles.slaBadge} ${
-                            t.sla.toLowerCase().includes('breached')
-                              ? styles.slaBreached
-                              : t.sla.toLowerCase().includes('risk')
-                              ? styles.slaRisk
-                              : ''
-                          }`}
-                        >
-                          {t.sla}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={styles.timeText}>{t.updated}</span>
-                      </td>
-                      <td>
-                        <div className={styles.actionsCell}>
-                          <button
-                            type="button"
-                            className={styles.actionIconBtn}
-                            title="Reassign Agent"
-                            onClick={() => handleOpenActionModal(t, 'reassign')}
+                  {tickets.map((t) => {
+                    const ticketIdStr = t.ticketNumber || t.id || t._id;
+                    const priorityLower = (t.priority || 'medium').toLowerCase();
+                    const statusVal = t.status || 'OPEN';
+
+                    return (
+                      <tr key={t.id || t._id} className={styles.tableRow}>
+                        <td>
+                          <span
+                            className={styles.ticketId}
+                            onClick={() => navigate(`/admin/tickets/${ticketIdStr}`)}
                           >
-                            👤
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.actionIconBtn}
-                            title="Change Priority"
-                            onClick={() => handleOpenActionModal(t, 'priority')}
+                            #{ticketIdStr}
+                          </span>
+                        </td>
+                        <td>
+                          <strong
+                            className={styles.subjectText}
+                            onClick={() => navigate(`/admin/tickets/${ticketIdStr}`)}
                           >
-                            ⚡
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.actionIconBtn}
-                            title="Change Status"
-                            onClick={() => handleOpenActionModal(t, 'status')}
-                          >
-                            ⚙️
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.viewBtn}
-                            onClick={() => navigate(`/admin/tickets/${t.id.replace('#', '')}`)}
-                          >
-                            View
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {t.subject}
+                          </strong>
+                        </td>
+                        <td>
+                          <div className={styles.metaCell}>
+                            <span>{t.customer?.name || 'Customer'}</span>
+                            <small className={styles.subText}>{t.customer?.email || 'N/A'}</small>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={styles.agentTag}>
+                            {t.assignedTo?.name || 'Unassigned'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={styles.categoryPill}>
+                            {t.category?.name || 'General'}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`${styles.priorityBadge} ${styles[priorityLower] || ''}`}>
+                            {t.priority}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={styles.statusPill}>{statusVal}</span>
+                        </td>
+                        <td>
+                          <span className={styles.timeText}>{formatTicketDate(t.updatedAt || t.createdAt)}</span>
+                        </td>
+                        <td>
+                          <div className={styles.actionsCell}>
+                            <button
+                              type="button"
+                              className={styles.actionIconBtn}
+                              title="Reassign Agent"
+                              onClick={() => handleOpenActionModal(t, 'reassign')}
+                            >
+                              👤
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.actionIconBtn}
+                              title="Change Priority"
+                              onClick={() => handleOpenActionModal(t, 'priority')}
+                            >
+                              ⚡
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.actionIconBtn}
+                              title="Change Status"
+                              onClick={() => handleOpenActionModal(t, 'status')}
+                            >
+                              ⚙️
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.viewBtn}
+                              onClick={() => navigate(`/admin/tickets/${ticketIdStr}`)}
+                            >
+                              View
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Cards List (<768px) */}
             <div className={styles.mobileCardsList}>
-              {filteredTickets.map((t) => (
-                <div
-                  key={t.id}
-                  className={styles.mobileCard}
-                  onClick={() => navigate(`/admin/tickets/${t.id.replace('#', '')}`)}
-                >
-                  <div className={styles.mobileCardHeader}>
-                    <span className={styles.ticketId}>{t.id}</span>
-                    <span className={`${styles.priorityBadge} ${styles[t.priority.toLowerCase()]}`}>
-                      {t.priority}
-                    </span>
+              {tickets.map((t) => {
+                const ticketIdStr = t.ticketNumber || t.id || t._id;
+                const priorityLower = (t.priority || 'medium').toLowerCase();
+
+                return (
+                  <div
+                    key={t.id || t._id}
+                    className={styles.mobileCard}
+                    onClick={() => navigate(`/admin/tickets/${ticketIdStr}`)}
+                  >
+                    <div className={styles.mobileCardHeader}>
+                      <span className={styles.ticketId}>#{ticketIdStr}</span>
+                      <span className={`${styles.priorityBadge} ${styles[priorityLower] || ''}`}>
+                        {t.priority}
+                      </span>
+                    </div>
+                    <h4 className={styles.mobileSubject}>{t.subject}</h4>
+                    <div className={styles.mobileMetaRow}>
+                      <span>Customer: <strong>{t.customer?.name || 'Customer'}</strong></span>
+                      <span>Agent: <strong>{t.assignedTo?.name || 'Unassigned'}</strong></span>
+                    </div>
+                    <div className={styles.mobileFooter}>
+                      <span className={styles.statusPill}>{t.status}</span>
+                      <span className={styles.timeText}>{formatTicketDate(t.updatedAt || t.createdAt)}</span>
+                    </div>
                   </div>
-                  <h4 className={styles.mobileSubject}>{t.subject}</h4>
-                  <div className={styles.mobileMetaRow}>
-                    <span>Customer: <strong>{t.customer}</strong></span>
-                    <span>Agent: <strong>{t.agent}</strong></span>
-                  </div>
-                  <div className={styles.mobileFooter}>
-                    <span className={styles.statusPill}>{t.status}</span>
-                    <span className={styles.slaBadge}>{t.sla}</span>
-                    <span className={styles.timeText}>{t.updated}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -366,9 +459,9 @@ export default function AdminTickets() {
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h3>
-                {actionModalType === 'reassign' && `Reassign Ticket ${selectedTicket.id}`}
-                {actionModalType === 'priority' && `Change Priority — ${selectedTicket.id}`}
-                {actionModalType === 'status' && `Update Status — ${selectedTicket.id}`}
+                {actionModalType === 'reassign' && `Reassign Ticket #${selectedTicket.ticketNumber || selectedTicket.id}`}
+                {actionModalType === 'priority' && `Change Priority — #${selectedTicket.ticketNumber || selectedTicket.id}`}
+                {actionModalType === 'status' && `Update Status — #${selectedTicket.ticketNumber || selectedTicket.id}`}
               </h3>
               <button
                 type="button"
@@ -390,10 +483,10 @@ export default function AdminTickets() {
                     value={modalValue}
                     onChange={(e) => setModalValue(e.target.value)}
                   >
-                    <option value="Unassigned">Unassigned</option>
-                    {adminAgentsList.map((a) => (
-                      <option key={a.id} value={a.name}>
-                        {a.name} ({a.department})
+                    <option value="unassigned">Unassigned</option>
+                    {agentsList.map((a) => (
+                      <option key={a.id || a._id} value={a.id || a._id}>
+                        {a.name} ({a.department || 'General'})
                       </option>
                     ))}
                   </select>
@@ -408,10 +501,10 @@ export default function AdminTickets() {
                     value={modalValue}
                     onChange={(e) => setModalValue(e.target.value)}
                   >
-                    <option value="Critical">Critical (15m SLA)</option>
-                    <option value="High">High (1h SLA)</option>
-                    <option value="Medium">Medium (4h SLA)</option>
-                    <option value="Low">Low (8h SLA)</option>
+                    <option value="URGENT">Urgent (Critical)</option>
+                    <option value="HIGH">High</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="LOW">Low</option>
                   </select>
                 </div>
               )}
@@ -424,11 +517,10 @@ export default function AdminTickets() {
                     value={modalValue}
                     onChange={(e) => setModalValue(e.target.value)}
                   >
-                    <option value="Open">Open</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Waiting for Customer">Waiting for Customer</option>
-                    <option value="Resolved">Resolved</option>
-                    <option value="Closed">Closed</option>
+                    <option value="OPEN">OPEN</option>
+                    <option value="IN_PROGRESS">IN_PROGRESS</option>
+                    <option value="RESOLVED">RESOLVED</option>
+                    <option value="CLOSED">CLOSED</option>
                   </select>
                 </div>
               )}
@@ -439,6 +531,7 @@ export default function AdminTickets() {
                 type="button"
                 className={styles.cancelBtn}
                 onClick={() => setActionModalType(null)}
+                disabled={modalSubmitting}
               >
                 Cancel
               </button>
@@ -446,8 +539,9 @@ export default function AdminTickets() {
                 type="button"
                 className={styles.saveBtn}
                 onClick={handleSaveModalAction}
+                disabled={modalSubmitting}
               >
-                Save Changes
+                {modalSubmitting ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </div>
