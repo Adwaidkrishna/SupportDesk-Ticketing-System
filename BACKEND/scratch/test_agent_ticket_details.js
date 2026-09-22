@@ -191,7 +191,7 @@ async function runTests() {
     assert(data?.priority === realTicket.priority, `9. Correct priority returned (got: "${data?.priority}")`);
 
     // 10. Correct status returned
-    assert(data?.status === 'OPEN', `10. Correct status returned (got: "${data?.status}")`);
+    assert(data?.status === realTicket.status, `10. Correct status returned (got: "${data?.status}", expected: "${realTicket.status}")`);
 
     // 11. Customer name/email returned
     assert(
@@ -205,8 +205,12 @@ async function runTests() {
       `12. Category details returned (name: "${data?.category?.name}")`
     );
 
-    // 13. assignedTo is null when ticket is unassigned
-    assert(data?.assignedTo === null, '13. assignedTo is null when ticket is unassigned');
+    // 13. assignedTo matches realTicket
+    if (!realTicket.assignedTo) {
+      assert(data?.assignedTo === null, '13. assignedTo is null when ticket is unassigned');
+    } else {
+      assert(data?.assignedTo !== null, '13. assignedTo is populated when ticket is assigned');
+    }
 
     // 14. Nonexistent ticket -> 404
     const nonExistentId = new mongoose.Types.ObjectId().toString();

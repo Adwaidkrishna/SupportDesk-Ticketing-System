@@ -14,12 +14,25 @@ import styles from './AdminLayout.module.css';
 export default function AdminLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const { unreadCount } = useNotifications();
 
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const activePath = location.pathname;
+
+  const displayName = user?.name || currentAdmin.name;
+  const displayRole = user?.role
+    ? (user.role === 'admin' ? 'System Administrator' : user.role)
+    : currentAdmin.role;
+  const displayInitials = displayName
+    ? displayName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : 'AD';
 
   const handleLogout = () => {
     setMoreDrawerOpen(false);
@@ -206,10 +219,10 @@ export default function AdminLayout() {
 
         {/* User Footer Tile */}
         <div className={styles.userTile}>
-          <div className={styles.userAvatar}>{currentAdmin.initials}</div>
+          <div className={styles.userAvatar}>{displayInitials}</div>
           <div className={styles.userInfo}>
-            <span className={styles.userName}>{currentAdmin.name}</span>
-            <span className={styles.userRole}>{currentAdmin.role}</span>
+            <span className={styles.userName}>{displayName}</span>
+            <span className={styles.userRole}>{displayRole}</span>
           </div>
           <button
             type="button"
@@ -266,10 +279,10 @@ export default function AdminLayout() {
               className={styles.profileBadge}
               onClick={() => navigate('/admin/settings')}
             >
-              <div className={styles.badgeAvatar}>{currentAdmin.initials}</div>
+              <div className={styles.badgeAvatar}>{displayInitials}</div>
               <div className={styles.badgeInfo}>
-                <span className={styles.badgeName}>{currentAdmin.name}</span>
-                <span className={styles.badgeRole}>{currentAdmin.role}</span>
+                <span className={styles.badgeName}>{displayName}</span>
+                <span className={styles.badgeRole}>{displayRole}</span>
               </div>
               <svg className={styles.chevronIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9" />
@@ -301,7 +314,7 @@ export default function AdminLayout() {
               onClick={() => navigate('/admin/settings')}
               title="Settings"
             >
-              {currentAdmin.initials}
+              {displayInitials}
             </div>
           </div>
         </header>
