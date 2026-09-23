@@ -55,6 +55,10 @@ export const sendAgentMessage = async (ticketId, agentId, body) => {
     body: body.trim(),
   });
 
+  // Record SLA first response if applicable
+  const { recordFirstResponse } = await import('../../sla/sla.service.js');
+  await recordFirstResponse(ticketId, 'agent', agentId);
+
   // 4. Populate sender safe details
   await message.populate('senderId', 'name email role');
 

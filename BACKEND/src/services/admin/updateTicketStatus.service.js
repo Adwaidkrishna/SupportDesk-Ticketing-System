@@ -27,6 +27,10 @@ export const updateTicketStatus = async (ticketId, status, adminId) => {
 
   const previousStatus = ticket.status;
   ticket.status = status;
+  if (status === 'RESOLVED') {
+    const { recordResolution } = await import('../sla/sla.service.js');
+    await recordResolution(ticket._id);
+  }
   await ticket.save();
 
   await ticket.populate('customerId', 'name email avatar department phone');
@@ -109,6 +113,7 @@ export const updateTicketStatus = async (ticketId, status, adminId) => {
             department: ticket.assignedTo.department,
           }
         : null,
+      sla: ticket.sla,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
     },

@@ -726,6 +726,108 @@ export default function AgentTicketDetails() {
             </div>
           </div>
 
+          {/* Card: SLA Target & Performance */}
+          {ticket.sla && (
+            <div className={styles.infoCard}>
+              <div className={styles.cardHeader} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 className={styles.cardTitle} style={{ margin: 0 }}>
+                  <span className={styles.cardIcon}>⏱️</span>
+                  SLA Target & Timers
+                </h3>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    padding: '0.2rem 0.6rem',
+                    borderRadius: '12px',
+                    background:
+                      ticket.slaEvaluation?.overallStatus === 'BREACHED'
+                        ? 'rgba(255, 69, 58, 0.15)'
+                        : ticket.slaEvaluation?.overallStatus === 'WARNING'
+                        ? 'rgba(255, 159, 10, 0.15)'
+                        : 'rgba(48, 209, 88, 0.15)',
+                    color:
+                      ticket.slaEvaluation?.overallStatus === 'BREACHED'
+                        ? '#FF453A'
+                        : ticket.slaEvaluation?.overallStatus === 'WARNING'
+                        ? '#FF9F0A'
+                        : '#30D158',
+                  }}
+                >
+                  {ticket.slaEvaluation?.overallStatus === 'BREACHED'
+                    ? '🔴 Breached'
+                    : ticket.slaEvaluation?.overallStatus === 'WARNING'
+                    ? '⚠️ Warning'
+                    : '✓ Within SLA'}
+                </span>
+              </div>
+              <div className={styles.metaGrid}>
+                <div className={styles.metaTile}>
+                  <span className={styles.metaLabel}>Policy</span>
+                  <span className={styles.metaValue}>{ticket.sla.policyName || `${ticket.priority} SLA`}</span>
+                </div>
+                <div className={styles.metaTile}>
+                  <span className={styles.metaLabel}>Response Target</span>
+                  <span className={styles.metaValue}>
+                    {ticket.sla.responseDeadline ? formatDate(ticket.sla.responseDeadline) : 'N/A'}
+                  </span>
+                </div>
+                <div className={styles.metaTile}>
+                  <span className={styles.metaLabel}>Response Status</span>
+                  <span
+                    className={styles.metaValue}
+                    style={{
+                      fontWeight: 600,
+                      color:
+                        ticket.slaEvaluation?.responseStatus === 'BREACHED'
+                          ? '#FF453A'
+                          : ticket.slaEvaluation?.responseStatus === 'WARNING'
+                          ? '#FF9F0A'
+                          : '#30D158',
+                    }}
+                  >
+                    {ticket.slaEvaluation?.responseStatus === 'BREACHED'
+                      ? '🔴 Breached'
+                      : ticket.slaEvaluation?.responseStatus === 'WARNING'
+                      ? '⚠️ Warning'
+                      : ticket.sla?.firstResponseAt
+                      ? '✓ Satisfied'
+                      : '✓ Within SLA'}
+                  </span>
+                </div>
+                <div className={styles.metaTile}>
+                  <span className={styles.metaLabel}>Resolution Target</span>
+                  <span className={styles.metaValue}>
+                    {ticket.sla.resolutionDeadline ? formatDate(ticket.sla.resolutionDeadline) : 'N/A'}
+                  </span>
+                </div>
+                <div className={styles.metaTile}>
+                  <span className={styles.metaLabel}>Resolution Status</span>
+                  <span
+                    className={styles.metaValue}
+                    style={{
+                      fontWeight: 600,
+                      color:
+                        ticket.slaEvaluation?.resolutionStatus === 'BREACHED'
+                          ? '#FF453A'
+                          : ticket.slaEvaluation?.resolutionStatus === 'WARNING'
+                          ? '#FF9F0A'
+                          : '#30D158',
+                    }}
+                  >
+                    {ticket.slaEvaluation?.resolutionStatus === 'BREACHED'
+                      ? '🔴 Breached'
+                      : ticket.slaEvaluation?.resolutionStatus === 'WARNING'
+                      ? '⚠️ Warning'
+                      : ticket.sla?.resolvedAt
+                      ? '✓ Resolved in SLA'
+                      : '✓ Within SLA'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Card 3: Customer Information */}
           <div className={styles.infoCard}>
             <div className={styles.cardHeader}>

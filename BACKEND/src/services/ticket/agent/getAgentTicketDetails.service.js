@@ -47,6 +47,9 @@ export const getAgentTicketDetails = async (ticketId) => {
       }
     : null;
 
+  const { evaluateTicketSla } = await import('../../sla/sla.service.js');
+  const slaEvaluation = evaluateTicketSla(ticket);
+
   const ticketData = {
     id: ticket._id.toString(),
     _id: ticket._id.toString(),
@@ -55,6 +58,8 @@ export const getAgentTicketDetails = async (ticketId) => {
     description: ticket.description,
     status: ticket.status,
     priority: ticket.priority,
+    sla: ticket.sla || null,
+    slaEvaluation,
     customer,
     customerId: customer ? customer.id : null,
     category,

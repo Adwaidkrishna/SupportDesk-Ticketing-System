@@ -15,6 +15,12 @@ import updateTicketStatus from './updateTicketStatus.service.js';
 import updateTicketPriority from './updateTicketPriority.service.js';
 import getTicketMessages from './getTicketMessages.service.js';
 import sendAdminReply from './sendAdminReply.service.js';
+import {
+  getSlaPolicies,
+  createSlaPolicy,
+  updateSlaPolicy,
+  toggleSlaPolicyStatus,
+} from './slaPolicies.service.js';
 
 export {
   getUsers,
@@ -34,6 +40,10 @@ export {
   updateTicketPriority,
   getTicketMessages,
   sendAdminReply,
+  getSlaPolicies,
+  createSlaPolicy,
+  updateSlaPolicy,
+  toggleSlaPolicyStatus,
 };
 
 export default {
@@ -54,4 +64,8 @@ export default {
   updateTicketPriority,
   getTicketMessages,
   sendAdminReply,
+  getSlaPolicies,
+  createSlaPolicy,
+  updateSlaPolicy,
+  toggleSlaPolicyStatus,
 };

@@ -112,18 +112,41 @@ export const getAgentDashboard = async (agentId) => {
     highUrgentTickets: myHighUrgentTicketsCount,
   };
 
+  const agentActiveSlaTickets = await Ticket.find({
+    assignedTo: agentObjId,
+    status: { $in: ['OPEN', 'IN_PROGRESS'] },
+    'sla.responseDeadline': { $ne: null },
+  }).lean();
+
+  const { evaluateTicketSla } = await import('../sla/sla.service.js');
+  const now = new Date();
+  const slaMetrics = {
+    withinSLA: 0,
+    atRisk: 0,
+    breached: 0,
+  };
+  for (const t of agentActiveSlaTickets) {
+    const ev = evaluateTicketSla(t, now);
+    if (ev.isBreached) slaMetrics.breached++;
+    else if (ev.isWarning) slaMetrics.atRisk++;
+    else slaMetrics.withinSLA++;
+  }
+
   const stats = {
     availableTickets: availableTicketsCount,
     myActiveTickets,
     myResolvedTickets,
     myClosedTickets,
     myHighUrgentTickets: myHighUrgentTicketsCount,
+    slaWarnings: slaMetrics.atRisk,
+    slaBreached: slaMetrics.breached,
   };
 
   return {
     stats,
     workload,
     recentAssignedTickets,
+    slaMetrics,
   };
 };
 

@@ -221,6 +221,25 @@ export const getAdminDashboard = async () => {
     updatedAt: t.updatedAt,
   }));
 
+  const activeSlaTickets = await Ticket.find({
+    status: { $in: ['OPEN', 'IN_PROGRESS'] },
+    'sla.responseDeadline': { $ne: null },
+  }).lean();
+
+  const { evaluateTicketSla } = await import('../sla/sla.service.js');
+  const now = new Date();
+  const slaMetrics = {
+    withinSLA: 0,
+    atRisk: 0,
+    breached: 0,
+  };
+  for (const t of activeSlaTickets) {
+    const ev = evaluateTicketSla(t, now);
+    if (ev.isBreached) slaMetrics.breached++;
+    else if (ev.isWarning) slaMetrics.atRisk++;
+    else slaMetrics.withinSLA++;
+  }
+
   return {
     userStats,
     ticketStats,
@@ -228,6 +247,7 @@ export const getAdminDashboard = async () => {
     ticketsByCategory,
     agentWorkload,
     recentTicketActivity,
+    slaMetrics,
   };
 };
 

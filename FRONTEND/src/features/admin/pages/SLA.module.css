@@ -188,7 +188,8 @@
   border-radius: 4px;
 }
 
-.critical {
+.critical,
+.urgent {
   background: rgba(255, 69, 58, 0.15);
   color: #FF453A;
 }

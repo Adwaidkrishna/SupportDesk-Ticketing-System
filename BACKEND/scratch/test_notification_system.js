@@ -15,7 +15,7 @@ import { hashPassword } from '../src/utils/hash.util.js';
 import * as notifService from '../src/services/notification/index.js';
 import ticketService from '../src/services/ticket/index.js';
 
-const TEST_PORT = 5099;
+const TEST_PORT = 5199;
 const BASE_URL = `http://localhost:${TEST_PORT}/api/v1`;
 const SOCKET_URL = `http://localhost:${TEST_PORT}`;
 

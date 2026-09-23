@@ -39,6 +39,10 @@ export const sendAdminReply = async (ticketId, adminId, body) => {
     body: body.trim(),
   });
 
+  // Record SLA first response if applicable
+  const { recordFirstResponse } = await import('../sla/sla.service.js');
+  await recordFirstResponse(ticket._id, 'admin', adminId);
+
   await message.populate('senderId', 'name email role');
 
   const responseMessage = {

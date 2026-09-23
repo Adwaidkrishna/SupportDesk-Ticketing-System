@@ -24,6 +24,8 @@ const NotificationSchema = new mongoose.Schema(
         'ticket_resolved',
         'ticket_closed',
         'ticket_reopened',
+        'sla_warning',
+        'sla_breach',
         'system',
       ],
     },

@@ -33,7 +33,11 @@ export const createTicket = async ({ customerId, subject, description, categoryI
   // 2. Generate unique Ticket Number
   const ticketNumber = await generateTicketNumber();
 
-  // 3. Create Ticket Document with explicit permitted fields only
+  // 3. Calculate SLA deadlines based on active policy
+  const { calculateSlaForTicket } = await import('../../sla/sla.service.js');
+  const slaData = await calculateSlaForTicket(priority || 'MEDIUM');
+
+  // 4. Create Ticket Document with explicit permitted fields only
   const newTicket = await Ticket.create({
     ticketNumber,
     customerId,
@@ -42,6 +46,7 @@ export const createTicket = async ({ customerId, subject, description, categoryI
     description: description.trim(),
     priority: priority || 'MEDIUM',
     status: 'OPEN', // Backend unconditionally enforces initial status OPEN
+    sla: slaData,
   });
 
   // Real-time notifications: notify customer + relevant agents/admins
@@ -83,6 +88,7 @@ export const createTicket = async ({ customerId, subject, description, categoryI
       categoryId: newTicket.categoryId.toString(),
       priority: newTicket.priority,
       status: newTicket.status,
+      sla: newTicket.sla,
       createdAt: newTicket.createdAt,
       updatedAt: newTicket.updatedAt,
     },

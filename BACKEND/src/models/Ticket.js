@@ -45,7 +45,72 @@ const TicketSchema = new mongoose.Schema(
       enum: ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'],
       default: 'OPEN',
     },
-
+    sla: {
+      policyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'SlaPolicy',
+        default: null,
+      },
+      policyName: {
+        type: String,
+        default: null,
+      },
+      priority: {
+        type: String,
+        enum: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+      },
+      responseTimeMinutes: {
+        type: Number,
+        default: null,
+      },
+      resolutionTimeMinutes: {
+        type: Number,
+        default: null,
+      },
+      warningPercentage: {
+        type: Number,
+        default: 80,
+      },
+      responseDeadline: {
+        type: Date,
+        default: null,
+        index: true,
+      },
+      resolutionDeadline: {
+        type: Date,
+        default: null,
+        index: true,
+      },
+      firstResponseAt: {
+        type: Date,
+        default: null,
+      },
+      responseBreached: {
+        type: Boolean,
+        default: false,
+      },
+      resolvedAt: {
+        type: Date,
+        default: null,
+      },
+      resolutionBreached: {
+        type: Boolean,
+        default: false,
+      },
+      isBreached: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+      warningNotified: {
+        type: Boolean,
+        default: false,
+      },
+      breachNotified: {
+        type: Boolean,
+        default: false,
+      },
+    },
   },
   { timestamps: true }
 );
