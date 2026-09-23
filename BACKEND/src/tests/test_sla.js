@@ -27,7 +27,7 @@ import {
   createSlaPolicy,
   updateSlaPolicy,
   toggleSlaPolicyStatus,
-} from '../services/admin/slaPolicies.service.js';
+} from '../services/admin/sla/index.js';
 import { createTicket } from '../services/ticket/customer/createTicket.service.js';
 import { sendAgentMessage } from '../services/ticket/agent/sendAgentMessage.service.js';
 import { sendCustomerMessage } from '../services/ticket/customer/sendCustomerMessage.service.js';

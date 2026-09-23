@@ -13,10 +13,10 @@ import {
   validateUpdateCategory,
   validateUpdateCategoryStatus,
 } from '../validators/adminCategory.validator.js';
-import { getCategories } from '../services/admin/getCategories.service.js';
-import { createCategory } from '../services/admin/createCategory.service.js';
-import { updateCategory } from '../services/admin/updateCategory.service.js';
-import { updateCategoryStatus } from '../services/admin/updateCategoryStatus.service.js';
+import { getCategories } from '../services/admin/categories/getCategories.service.js';
+import { createCategory } from '../services/admin/categories/createCategory.service.js';
+import { updateCategory } from '../services/admin/categories/updateCategory.service.js';
+import { updateCategoryStatus } from '../services/admin/categories/updateCategoryStatus.service.js';
 import { createTicket } from '../services/ticket/customer/createTicket.service.js';
 
 let passed = 0;

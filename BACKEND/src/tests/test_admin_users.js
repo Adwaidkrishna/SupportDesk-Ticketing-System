@@ -14,9 +14,9 @@ import {
   validateUpdateUser,
 } from '../validators/adminUser.validator.js';
 import User from '../models/User.js';
-import { getUsers } from '../services/admin/getUsers.service.js';
-import { updateUserStatus } from '../services/admin/updateUserStatus.service.js';
-import { updateUserDetails } from '../services/admin/updateUserDetails.service.js';
+import { getUsers } from '../services/admin/users/getUsers.service.js';
+import { updateUserStatus } from '../services/admin/users/updateUserStatus.service.js';
+import { updateUserDetails } from '../services/admin/users/updateUserDetails.service.js';
 import { loginUser } from '../services/auth/login.service.js';
 import { hashPassword } from '../utils/hash.util.js';
 

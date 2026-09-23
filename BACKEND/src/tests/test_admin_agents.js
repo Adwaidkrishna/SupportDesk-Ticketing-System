@@ -12,9 +12,9 @@ import {
   validateUpdateAgentStatus,
   validateUpdateAgent,
 } from '../validators/adminAgent.validator.js';
-import { getAgents } from '../services/admin/getAgents.service.js';
-import { updateAgentStatus } from '../services/admin/updateAgentStatus.service.js';
-import { updateAgentDetails } from '../services/admin/updateAgentDetails.service.js';
+import { getAgents } from '../services/admin/agents/getAgents.service.js';
+import { updateAgentStatus } from '../services/admin/agents/updateAgentStatus.service.js';
+import { updateAgentDetails } from '../services/admin/agents/updateAgentDetails.service.js';
 
 let passed = 0;
 let failed = 0;

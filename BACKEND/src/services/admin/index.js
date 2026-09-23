@@ -1,38 +1,23 @@
-import getUsers from './getUsers.service.js';
-import updateUserStatus from './updateUserStatus.service.js';
-import updateUserDetails from './updateUserDetails.service.js';
-import getAgents from './getAgents.service.js';
-import updateAgentStatus from './updateAgentStatus.service.js';
-import updateAgentDetails from './updateAgentDetails.service.js';
-import getCategories from './getCategories.service.js';
-import createCategory from './createCategory.service.js';
-import updateCategory from './updateCategory.service.js';
-import updateCategoryStatus from './updateCategoryStatus.service.js';
-import getTickets from './getTickets.service.js';
-import getTicketDetails from './getTicketDetails.service.js';
-import assignTicketAgent from './assignTicketAgent.service.js';
-import updateTicketStatus from './updateTicketStatus.service.js';
-import updateTicketPriority from './updateTicketPriority.service.js';
-import getTicketMessages from './getTicketMessages.service.js';
-import sendAdminReply from './sendAdminReply.service.js';
-import {
-  getSlaPolicies,
-  createSlaPolicy,
-  updateSlaPolicy,
-  toggleSlaPolicyStatus,
-} from './slaPolicies.service.js';
-
-export {
+import usersServices, {
   getUsers,
   updateUserStatus,
   updateUserDetails,
+} from './users/index.js';
+
+import agentsServices, {
   getAgents,
   updateAgentStatus,
   updateAgentDetails,
+} from './agents/index.js';
+
+import categoriesServices, {
   getCategories,
   createCategory,
   updateCategory,
   updateCategoryStatus,
+} from './categories/index.js';
+
+import ticketsServices, {
   getTickets,
   getTicketDetails,
   assignTicketAgent,
@@ -40,6 +25,38 @@ export {
   updateTicketPriority,
   getTicketMessages,
   sendAdminReply,
+} from './tickets/index.js';
+
+import slaServices, {
+  getSlaPolicies,
+  createSlaPolicy,
+  updateSlaPolicy,
+  toggleSlaPolicyStatus,
+} from './sla/index.js';
+
+export {
+  // Users
+  getUsers,
+  updateUserStatus,
+  updateUserDetails,
+  // Agents
+  getAgents,
+  updateAgentStatus,
+  updateAgentDetails,
+  // Categories
+  getCategories,
+  createCategory,
+  updateCategory,
+  updateCategoryStatus,
+  // Tickets
+  getTickets,
+  getTicketDetails,
+  assignTicketAgent,
+  updateTicketStatus,
+  updateTicketPriority,
+  getTicketMessages,
+  sendAdminReply,
+  // SLA
   getSlaPolicies,
   createSlaPolicy,
   updateSlaPolicy,
@@ -47,25 +64,9 @@ export {
 };
 
 export default {
-  getUsers,
-  updateUserStatus,
-  updateUserDetails,
-  getAgents,
-  updateAgentStatus,
-  updateAgentDetails,
-  getCategories,
-  createCategory,
-  updateCategory,
-  updateCategoryStatus,
-  getTickets,
-  getTicketDetails,
-  assignTicketAgent,
-  updateTicketStatus,
-  updateTicketPriority,
-  getTicketMessages,
-  sendAdminReply,
-  getSlaPolicies,
-  createSlaPolicy,
-  updateSlaPolicy,
-  toggleSlaPolicyStatus,
+  ...usersServices,
+  ...agentsServices,
+  ...categoriesServices,
+  ...ticketsServices,
+  ...slaServices,
 };

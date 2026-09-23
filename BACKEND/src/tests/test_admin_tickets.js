@@ -16,13 +16,13 @@ import {
   validateUpdatePriority,
   validateAdminReply,
 } from '../validators/adminTicket.validator.js';
-import { getTickets } from '../services/admin/getTickets.service.js';
-import { getTicketDetails } from '../services/admin/getTicketDetails.service.js';
-import { assignTicketAgent } from '../services/admin/assignTicketAgent.service.js';
-import { updateTicketStatus } from '../services/admin/updateTicketStatus.service.js';
-import { updateTicketPriority } from '../services/admin/updateTicketPriority.service.js';
-import { getTicketMessages } from '../services/admin/getTicketMessages.service.js';
-import { sendAdminReply } from '../services/admin/sendAdminReply.service.js';
+import { getTickets } from '../services/admin/tickets/getTickets.service.js';
+import { getTicketDetails } from '../services/admin/tickets/getTicketDetails.service.js';
+import { assignTicketAgent } from '../services/admin/tickets/assignTicketAgent.service.js';
+import { updateTicketStatus } from '../services/admin/tickets/updateTicketStatus.service.js';
+import { updateTicketPriority } from '../services/admin/tickets/updateTicketPriority.service.js';
+import { getTicketMessages } from '../services/admin/tickets/getTicketMessages.service.js';
+import { sendAdminReply } from '../services/admin/tickets/sendAdminReply.service.js';
 
 let passed = 0;
 let failed = 0;
