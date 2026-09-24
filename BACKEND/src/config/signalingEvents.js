@@ -19,6 +19,9 @@ export const SIGNALING_EVENTS = Object.freeze({
   WEBRTC_OFFER: 'webrtc:offer',
   WEBRTC_ANSWER: 'webrtc:answer',
   ICE_CANDIDATE: 'webrtc:ice-candidate',
+
+  // Call Control & Media Track State Synchronization
+  MEDIA_STATE: 'call:media-state',
 });
 
 export default SIGNALING_EVENTS;

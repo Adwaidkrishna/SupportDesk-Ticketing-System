@@ -195,7 +195,41 @@ async function runTwoSessionSimulation() {
   assert(receivedByAgent.candidate.candidate.includes('202'), 'Agent received Customer ICE candidate');
   assert(receivedByAgent.senderId === customerUser._id.toString(), 'Agent candidate senderId verified');
 
-  console.log('\n5. Testing Call Termination & Cleanup Signaling...');
+  console.log('\n5. Testing Live Media State Relay (Mute & Camera Toggle Sync)...');
+  const customerMediaStatePromise = new Promise((resolve) => {
+    customerSocket.on(SIGNALING_EVENTS.MEDIA_STATE, (data) => resolve(data));
+  });
+
+  // Agent mutes microphone and turns camera off
+  agentSocket.emit(SIGNALING_EVENTS.MEDIA_STATE, {
+    ticketNumber: ticket.ticketNumber,
+    ticketId: ticket._id.toString(),
+    isMuted: true,
+    isCameraOff: true,
+  });
+
+  const receivedMediaStateByCustomer = await customerMediaStatePromise;
+  assert(receivedMediaStateByCustomer.isMuted === true, 'Customer received Agent muted state (isMuted: true)');
+  assert(receivedMediaStateByCustomer.isCameraOff === true, 'Customer received Agent camera off state (isCameraOff: true)');
+  assert(receivedMediaStateByCustomer.senderId === agentUser._id.toString(), 'Media state senderId matches Agent User ID');
+
+  const agentMediaStatePromise = new Promise((resolve) => {
+    agentSocket.on(SIGNALING_EVENTS.MEDIA_STATE, (data) => resolve(data));
+  });
+
+  // Customer unmutes and turns camera on
+  customerSocket.emit(SIGNALING_EVENTS.MEDIA_STATE, {
+    ticketNumber: ticket.ticketNumber,
+    ticketId: ticket._id.toString(),
+    isMuted: false,
+    isCameraOff: false,
+  });
+
+  const receivedMediaStateByAgent = await agentMediaStatePromise;
+  assert(receivedMediaStateByAgent.isMuted === false, 'Agent received Customer unmuted state (isMuted: false)');
+  assert(receivedMediaStateByAgent.isCameraOff === false, 'Agent received Customer camera on state (isCameraOff: false)');
+
+  console.log('\n6. Testing Call Termination & Cleanup Signaling...');
   const customerCallEndedPromise = new Promise((resolve) => {
     customerSocket.on(SIGNALING_EVENTS.CALL_ENDED, (data) => resolve(data));
   });

@@ -382,6 +382,38 @@ export const registerWebRtcHandlers = (io, socket) => {
       reportError(callback, 'Failed to relay call error');
     }
   });
+
+  /**
+   * 10. CALL MEDIA STATE
+   * Relays microphone mute and camera on/off states between participants.
+   * Expects payload: { ticketNumber | ticketId, isMuted?, isCameraOff? }
+   */
+  socket.on(SIGNALING_EVENTS.MEDIA_STATE, async (data, callback) => {
+    try {
+      const target = data?.ticketNumber || data?.ticketId || (typeof data === 'string' ? data : null);
+      const auth = await authorizeCallParticipant(target, socket.user);
+
+      if (!auth.authorized) {
+        return reportError(callback, auth.error, 'UNAUTHORIZED');
+      }
+
+      const room = `ticket:${auth.ticket.ticketNumber}`;
+
+      socket.to(room).emit(SIGNALING_EVENTS.MEDIA_STATE, {
+        ticketNumber: auth.ticket.ticketNumber,
+        senderId: socket.user.userId,
+        isMuted: typeof data?.isMuted === 'boolean' ? data.isMuted : false,
+        isCameraOff: typeof data?.isCameraOff === 'boolean' ? data.isCameraOff : false,
+      });
+
+      if (typeof callback === 'function') {
+        callback({ success: true });
+      }
+    } catch (err) {
+      console.error('Error in call:media-state handler:', err);
+      reportError(callback, 'Failed to relay media state');
+    }
+  });
 };
 
 export default registerWebRtcHandlers;

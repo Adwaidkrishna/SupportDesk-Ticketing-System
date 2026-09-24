@@ -100,15 +100,22 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
       const state = pc.connectionState;
       setConnectionState(state);
 
-      if (state === 'failed') {
-        setWebRtcError('Direct peer connection failed. Please check network firewall or VPN settings.');
+      if (state === 'connected') {
+        setWebRtcError(null);
+      } else if (state === 'disconnected') {
+        setWebRtcError('Connection interrupted. Attempting to reconnect...');
+      } else if (state === 'failed') {
+        setWebRtcError('Peer connection failed. Click Reconnect Call to retry.');
       }
     };
 
     pc.oniceconnectionstatechange = () => {
       const state = pc.iceConnectionState;
       if (state === 'failed') {
-        setWebRtcError('Network ICE traversal failed.');
+        setWebRtcError('Network ICE traversal failed. Click Reconnect Call to retry.');
+      } else if (state === 'connected' || state === 'completed') {
+        setConnectionState('connected');
+        setWebRtcError(null);
       }
     };
 
@@ -345,10 +352,59 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
     };
   }, [closePeerConnection]);
 
+  /**
+   * Safe recovery mechanism for disconnected or failed states without duplicating RTCPeerConnection.
+   */
+  const restartConnection = useCallback(async () => {
+    if (isEnded || !cleanTicketId) return;
+
+    setWebRtcError(null);
+    setConnectionState('connecting');
+
+    const pc = pcRef.current;
+    if (pc && pc.signalingState !== 'closed') {
+      try {
+        if (isOfferer) {
+          // Offerer negotiates ICE restart on existing connection
+          await initiateOffer(true);
+        } else {
+          // Callee signals offerer to renegotiate
+          socket.emit(SIGNALING_EVENTS.CALL_ACCEPTED, {
+            ticketNumber: cleanTicketId,
+            ticketId: cleanTicketId,
+          });
+        }
+      } catch (err) {
+        console.error('[useWebRTC] ICE restart failed:', err);
+        setWebRtcError('Failed to recover peer connection. Please try reconnecting.');
+      }
+    } else {
+      // If closed, recreate cleanly
+      try {
+        const newPc = createPeerConnection();
+        if (localStream) {
+          syncLocalTracks(newPc, localStream);
+        }
+        if (isOfferer) {
+          await initiateOffer(false);
+        } else {
+          socket.emit(SIGNALING_EVENTS.CALL_ACCEPTED, {
+            ticketNumber: cleanTicketId,
+            ticketId: cleanTicketId,
+          });
+        }
+      } catch (err) {
+        console.error('[useWebRTC] Re-initialization failed:', err);
+        setWebRtcError('Unable to re-initialize video call connection.');
+      }
+    }
+  }, [cleanTicketId, createPeerConnection, initiateOffer, isEnded, isOfferer, localStream, syncLocalTracks]);
+
   return {
     remoteStream,
     connectionState,
     webRtcError,
+    restartConnection,
     closePeerConnection,
   };
 }

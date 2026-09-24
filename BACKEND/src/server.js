@@ -14,13 +14,13 @@ const httpServer = createServer(app);
 initializeSocket(httpServer);
 
 connectDB().then(() => {
+  //sla need to run continuesly
   seedDefaultPolicies().catch((err) => console.warn('[SLA] Failed to seed default policies:', err.message));
   startSlaMonitor(60000);
 
   httpServer.listen(PORT, () => {
     console.log(
-      `\n🚀 [SupportDesk API] Server running in ${
-        process.env.NODE_ENV || 'development'
+      `\n🚀 [SupportDesk API] Server running in ${process.env.NODE_ENV || 'development'
       } mode on port ${PORT}`
     );
 

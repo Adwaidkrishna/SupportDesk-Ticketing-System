@@ -19,8 +19,10 @@ export function useLocalMedia() {
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
 
-  // Store stream in ref for reliable cleanup during unmount
+  // Store stream and control states in refs for reliable sync and cleanup
   const streamRef = useRef(null);
+  const isMutedRef = useRef(false);
+  const isCameraOffRef = useRef(false);
 
   /**
    * Stops all active tracks on the local MediaStream and releases hardware.
@@ -107,15 +109,21 @@ export function useLocalMedia() {
       streamRef.current = stream;
       setMediaStream(stream);
 
-      // Initialize track states
+      // Apply current control states to newly acquired stream tracks
       const audioTracks = stream.getAudioTracks();
       const videoTracks = stream.getVideoTracks();
 
       if (audioTracks.length > 0) {
-        setIsMuted(!audioTracks[0].enabled);
+        audioTracks.forEach((t) => {
+          t.enabled = !isMutedRef.current;
+        });
+        setIsMuted(isMutedRef.current);
       }
       if (videoTracks.length > 0) {
-        setIsCameraOff(!videoTracks[0].enabled);
+        videoTracks.forEach((t) => {
+          t.enabled = !isCameraOffRef.current;
+        });
+        setIsCameraOff(isCameraOffRef.current);
       }
 
       setIsLoading(false);
@@ -157,52 +165,36 @@ export function useLocalMedia() {
    * Toggles microphone mute state across all active audio tracks
    */
   const toggleMute = useCallback((forcedState = null) => {
-    if (!streamRef.current) {
-      setIsMuted((prev) => !prev);
-      return;
-    }
-
-    const audioTracks = streamRef.current.getAudioTracks();
-    if (audioTracks.length === 0) {
-      setIsMuted((prev) => !prev);
-      return;
-    }
-
-    const targetMuted = typeof forcedState === 'boolean'
+    const nextMuted = typeof forcedState === 'boolean'
       ? forcedState
-      : audioTracks[0].enabled; // If enabled, we want to mute
+      : !isMutedRef.current;
 
-    audioTracks.forEach((track) => {
-      track.enabled = !targetMuted;
-    });
+    isMutedRef.current = nextMuted;
+    setIsMuted(nextMuted);
 
-    setIsMuted(targetMuted);
+    if (streamRef.current) {
+      streamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = !nextMuted;
+      });
+    }
   }, []);
 
   /**
    * Toggles camera on/off state across all active video tracks
    */
   const toggleCamera = useCallback((forcedState = null) => {
-    if (!streamRef.current) {
-      setIsCameraOff((prev) => !prev);
-      return;
-    }
-
-    const videoTracks = streamRef.current.getVideoTracks();
-    if (videoTracks.length === 0) {
-      setIsCameraOff((prev) => !prev);
-      return;
-    }
-
-    const targetCameraOff = typeof forcedState === 'boolean'
+    const nextCameraOff = typeof forcedState === 'boolean'
       ? forcedState
-      : videoTracks[0].enabled; // If enabled, we want to turn off
+      : !isCameraOffRef.current;
 
-    videoTracks.forEach((track) => {
-      track.enabled = !targetCameraOff;
-    });
+    isCameraOffRef.current = nextCameraOff;
+    setIsCameraOff(nextCameraOff);
 
-    setIsCameraOff(targetCameraOff);
+    if (streamRef.current) {
+      streamRef.current.getVideoTracks().forEach((track) => {
+        track.enabled = !nextCameraOff;
+      });
+    }
   }, []);
 
   // Request camera and microphone access on mount

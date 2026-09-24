@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import socket from '../../../socket/socket.js';
@@ -44,6 +44,7 @@ export default function VideoCallRoom() {
     remoteStream,
     connectionState,
     webRtcError,
+    restartConnection,
     closePeerConnection,
   } = useWebRTC({
     ticketId,
@@ -51,6 +52,19 @@ export default function VideoCallRoom() {
     localStream: mediaStream,
     isEnded,
   });
+
+  // Track remote participant mute & camera-off state
+  const [remoteMediaState, setRemoteMediaState] = useState({
+    isMuted: false,
+    isCameraOff: false,
+  });
+
+  const isEndedRef = useRef(false);
+
+  // Keep isEndedRef in sync
+  useEffect(() => {
+    isEndedRef.current = isEnded;
+  }, [isEnded]);
 
   // Determine local vs remote participant based on user role
   const isCustomer = user?.role === 'customer';
@@ -70,8 +84,16 @@ export default function VideoCallRoom() {
       };
 
   const remoteParticipant = isCustomer
-    ? callState.agent
-    : callState.customer;
+    ? {
+        ...callState.agent,
+        isMuted: remoteMediaState.isMuted,
+        isCameraOff: remoteMediaState.isCameraOff,
+      }
+    : {
+        ...callState.customer,
+        isMuted: remoteMediaState.isMuted,
+        isCameraOff: remoteMediaState.isCameraOff,
+      };
 
   // Live Timer Count Up
   useEffect(() => {
@@ -82,7 +104,41 @@ export default function VideoCallRoom() {
     return () => clearInterval(interval);
   }, [isEnded]);
 
-  // Join ticket socket room and listen for remote call end
+  // Sync local microphone/camera state to remote peer over signaling
+  useEffect(() => {
+    if (!ticketId || isEnded) return;
+    const cleanId = ticketId.replace('#', '');
+    socket.emit(SIGNALING_EVENTS.MEDIA_STATE, {
+      ticketNumber: cleanId,
+      ticketId: cleanId,
+      isMuted,
+      isCameraOff,
+    });
+  }, [ticketId, isMuted, isCameraOff, isEnded]);
+
+  // Listen for remote track mute/unmute events on incoming remoteStream
+  useEffect(() => {
+    if (!remoteStream) return;
+    const videoTrack = remoteStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    const handleVideoMute = () => {
+      setRemoteMediaState((prev) => ({ ...prev, isCameraOff: true }));
+    };
+    const handleVideoUnmute = () => {
+      setRemoteMediaState((prev) => ({ ...prev, isCameraOff: false }));
+    };
+
+    videoTrack.addEventListener('mute', handleVideoMute);
+    videoTrack.addEventListener('unmute', handleVideoUnmute);
+
+    return () => {
+      videoTrack.removeEventListener('mute', handleVideoMute);
+      videoTrack.removeEventListener('unmute', handleVideoUnmute);
+    };
+  }, [remoteStream]);
+
+  // Join ticket socket room and listen for remote call end and media state events
   useEffect(() => {
     if (!ticketId) return;
     const cleanId = ticketId.replace('#', '');
@@ -96,16 +152,59 @@ export default function VideoCallRoom() {
     const handleRemoteCallEnded = (data) => {
       const dataTicket = String(data?.ticketNumber || data?.ticketId || '').replace('#', '');
       if (!dataTicket || dataTicket === cleanId) {
+        isEndedRef.current = true;
         closePeerConnection();
         stopMedia();
         setIsEnded(true);
       }
     };
 
+    const handleRemoteMediaState = (data) => {
+      const dataTicket = String(data?.ticketNumber || data?.ticketId || '').replace('#', '');
+      if (!dataTicket || dataTicket === cleanId) {
+        setRemoteMediaState({
+          isMuted: Boolean(data?.isMuted),
+          isCameraOff: Boolean(data?.isCameraOff),
+        });
+      }
+    };
+
     socket.on(SIGNALING_EVENTS.CALL_ENDED, handleRemoteCallEnded);
+    socket.on(SIGNALING_EVENTS.MEDIA_STATE, handleRemoteMediaState);
+
+    // Browser close / navigation away handler to avoid leaving active sessions
+    const handleBeforeUnload = () => {
+      if (!isEndedRef.current) {
+        isEndedRef.current = true;
+        socket.emit(SIGNALING_EVENTS.CALL_ENDED, {
+          ticketNumber: cleanId,
+          ticketId: cleanId,
+          reason: 'Participant disconnected or closed tab',
+        });
+        stopMedia();
+        closePeerConnection();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       socket.off(SIGNALING_EVENTS.CALL_ENDED, handleRemoteCallEnded);
+      socket.off(SIGNALING_EVENTS.MEDIA_STATE, handleRemoteMediaState);
+
+      // If component unmounts before explicit end call, cleanly notify and release hardware
+      if (!isEndedRef.current) {
+        isEndedRef.current = true;
+        socket.emit(SIGNALING_EVENTS.CALL_ENDED, {
+          ticketNumber: cleanId,
+          ticketId: cleanId,
+          reason: 'Participant navigated away from call',
+        });
+      }
+
+      closePeerConnection();
+      stopMedia();
       socket.emit('leave-ticket', { ticketId: cleanId, ticketNumber: cleanId });
     };
   }, [ticketId, stopMedia, closePeerConnection, isCustomer]);
@@ -148,6 +247,7 @@ export default function VideoCallRoom() {
   };
 
   const handleConfirmEndCall = () => {
+    isEndedRef.current = true;
     setIsEndModalOpen(false);
     closePeerConnection();
     stopMedia();
@@ -161,6 +261,7 @@ export default function VideoCallRoom() {
   };
 
   const handleReturnToTicket = () => {
+    isEndedRef.current = true;
     closePeerConnection();
     stopMedia();
     const cleanId = (ticketId || '1018').replace('#', '');
@@ -213,6 +314,15 @@ export default function VideoCallRoom() {
               onClick={startMedia}
             >
               ↻ Retry Device Access
+            </button>
+          )}
+          {!mediaError && webRtcError && (
+            <button
+              type="button"
+              className={styles.mediaRetryBtn}
+              onClick={restartConnection}
+            >
+              ↻ Reconnect Call
             </button>
           )}
         </div>
