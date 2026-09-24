@@ -1,7 +1,31 @@
+import { useRef, useEffect, useCallback } from 'react';
 import styles from './VideoCall.module.css';
 
-export default function ParticipantTile({ participant, isMainView = false, isScreenSharing = false }) {
+export default function ParticipantTile({
+  participant,
+  isMainView = false,
+  isScreenSharing = false,
+  mediaStream = null,
+  isLocal = false,
+}) {
   const { name, role, initials, avatarBg, isMuted, isCameraOff } = participant;
+  const videoRef = useRef(null);
+
+  const handleVideoRef = useCallback(
+    (node) => {
+      videoRef.current = node;
+      if (node && mediaStream) {
+        node.srcObject = mediaStream;
+      }
+    },
+    [mediaStream]
+  );
+
+  useEffect(() => {
+    if (videoRef.current && mediaStream) {
+      videoRef.current.srcObject = mediaStream;
+    }
+  }, [mediaStream, isCameraOff]);
 
   return (
     <div className={`${styles.participantTile} ${isMainView ? styles.mainViewTile : styles.pipTile}`}>
@@ -43,6 +67,19 @@ export default function ParticipantTile({ participant, isMainView = false, isScr
               </div>
               <span className={styles.cameraOffText}>Camera Off</span>
             </div>
+          ) : mediaStream ? (
+            <>
+              <video
+                ref={handleVideoRef}
+                autoPlay
+                playsInline
+                muted={isLocal}
+                className={`${styles.videoElement} ${isLocal ? styles.localVideoMirror : ''}`}
+              />
+              <div className={styles.videoStreamBadge}>
+                {isLocal ? 'Local Camera • Live' : 'HD 1080p • Live Stream'}
+              </div>
+            </>
           ) : (
             <div className={styles.simulatedVideoFeed}>
               <div className={styles.avatarLarge} style={{ background: avatarBg || '#0A84FF' }}>

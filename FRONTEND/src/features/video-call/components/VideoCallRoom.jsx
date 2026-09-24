@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/context/AuthContext';
 import socket from '../../../socket/socket.js';
 import { SIGNALING_EVENTS } from '../constants/signalingEvents.js';
 import { initialVideoCallState } from '../videoCallMockData';
+import useLocalMedia from '../hooks/useLocalMedia';
 import CallHeader from './CallHeader';
 import ParticipantTile from './ParticipantTile';
 import CallControls from './CallControls';
@@ -25,6 +26,39 @@ export default function VideoCallRoom() {
   const [isEndModalOpen, setIsEndModalOpen] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
 
+  // Real local media hook: camera and microphone access & lifecycle
+  const {
+    mediaStream,
+    error: mediaError,
+    isMuted,
+    isCameraOff,
+    toggleMute,
+    toggleCamera,
+    stopMedia,
+    startMedia,
+  } = useLocalMedia();
+
+  // Determine local vs remote participant based on user role
+  const isCustomer = user?.role === 'customer';
+
+  const localParticipant = isCustomer
+    ? {
+        ...callState.customer,
+        name: user?.name || callState.customer.name,
+        isMuted,
+        isCameraOff,
+      }
+    : {
+        ...callState.agent,
+        name: user?.name || callState.agent.name,
+        isMuted,
+        isCameraOff,
+      };
+
+  const remoteParticipant = isCustomer
+    ? callState.agent
+    : callState.customer;
+
   // Live Timer Count Up
   useEffect(() => {
     if (isEnded) return;
@@ -43,6 +77,7 @@ export default function VideoCallRoom() {
     const handleRemoteCallEnded = (data) => {
       const dataTicket = String(data?.ticketNumber || data?.ticketId || '').replace('#', '');
       if (!dataTicket || dataTicket === cleanId) {
+        stopMedia();
         setIsEnded(true);
       }
     };
@@ -53,7 +88,7 @@ export default function VideoCallRoom() {
       socket.off(SIGNALING_EVENTS.CALL_ENDED, handleRemoteCallEnded);
       socket.emit('leave-ticket', { ticketId: cleanId, ticketNumber: cleanId });
     };
-  }, [ticketId]);
+  }, [ticketId, stopMedia]);
 
   const formatDuration = (totalSec) => {
     const hrs = Math.floor(totalSec / 3600);
@@ -62,20 +97,6 @@ export default function VideoCallRoom() {
     const pad = (n) => String(n).padStart(2, '0');
     if (hrs > 0) return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
     return `${pad(mins)}:${pad(secs)}`;
-  };
-
-  const handleToggleMute = () => {
-    setCallState((prev) => ({
-      ...prev,
-      agent: { ...prev.agent, isMuted: !prev.agent.isMuted },
-    }));
-  };
-
-  const handleToggleCamera = () => {
-    setCallState((prev) => ({
-      ...prev,
-      agent: { ...prev.agent, isCameraOff: !prev.agent.isCameraOff },
-    }));
   };
 
   const handleToggleScreenShare = () => {
@@ -95,8 +116,8 @@ export default function VideoCallRoom() {
   const handleSendChatMessage = (text) => {
     const newMsg = {
       id: `icm_${Date.now()}`,
-      sender: 'agent',
-      senderName: callState.agent.name,
+      sender: isCustomer ? 'customer' : 'agent',
+      senderName: localParticipant.name,
       time: 'Just now',
       text,
     };
@@ -108,6 +129,7 @@ export default function VideoCallRoom() {
 
   const handleConfirmEndCall = () => {
     setIsEndModalOpen(false);
+    stopMedia();
     setIsEnded(true);
     const cleanId = (ticketId || '1018').replace('#', '');
     socket.emit(SIGNALING_EVENTS.CALL_ENDED, {
@@ -118,6 +140,7 @@ export default function VideoCallRoom() {
   };
 
   const handleReturnToTicket = () => {
+    stopMedia();
     const cleanId = (ticketId || '1018').replace('#', '');
     if (user?.role === 'customer') {
       navigate(`/customer/tickets/${cleanId}`);
@@ -145,25 +168,48 @@ export default function VideoCallRoom() {
       <CallHeader
         ticketId={callState.ticketId}
         ticketSubject={callState.ticketSubject}
-        customerName={callState.customer.name}
+        customerName={isCustomer ? callState.agent.name : callState.customer.name}
         durationFormatted={formatDuration(seconds)}
         status="connected"
       />
 
+      {/* Media Device Failure or Permission Denied Alert Banner */}
+      {mediaError && (
+        <div className={styles.mediaAlertBanner} role="alert">
+          <div className={styles.mediaAlertLeft}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{mediaError}</span>
+          </div>
+          <button
+            type="button"
+            className={styles.mediaRetryBtn}
+            onClick={startMedia}
+          >
+            ↻ Retry Device Access
+          </button>
+        </div>
+      )}
+
       {/* Main Workspace Stage */}
       <div className={styles.stageContainer}>
         <div className={styles.videoStage}>
-          {/* Main Feed: Customer Feed or Screen Share Canvas */}
+          {/* Main Feed: Remote Participant Feed (Mock) or Screen Share Canvas */}
           <ParticipantTile
-            participant={callState.customer}
+            participant={remoteParticipant}
             isMainView={true}
             isScreenSharing={callState.isScreenSharing}
           />
 
-          {/* Picture-in-Picture Floating Window: Agent Preview */}
+          {/* Picture-in-Picture Floating Window: Local Participant Camera Feed */}
           <ParticipantTile
-            participant={callState.agent}
+            participant={localParticipant}
             isMainView={false}
+            mediaStream={mediaStream}
+            isLocal={true}
           />
         </div>
 
@@ -179,10 +225,10 @@ export default function VideoCallRoom() {
 
       {/* Controls Footer */}
       <CallControls
-        isMuted={callState.agent.isMuted}
-        onToggleMute={handleToggleMute}
-        isCameraOff={callState.agent.isCameraOff}
-        onToggleCamera={handleToggleCamera}
+        isMuted={isMuted}
+        onToggleMute={toggleMute}
+        isCameraOff={isCameraOff}
+        onToggleCamera={toggleCamera}
         isScreenSharing={callState.isScreenSharing}
         onToggleScreenShare={handleToggleScreenShare}
         isChatOpen={callState.isChatOpen}
