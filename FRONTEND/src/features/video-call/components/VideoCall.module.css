@@ -71,6 +71,19 @@
   border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.statusPillConnecting {
+  background: rgba(255, 159, 10, 0.12);
+  border: 1px solid rgba(255, 159, 10, 0.25);
+  color: #FF9F0A;
+}
+
+.statusPillFailed {
+  background: rgba(255, 69, 58, 0.12);
+  border: 1px solid rgba(255, 69, 58, 0.25);
+  color: #FF453A;
 }
 
 .statusDot {
@@ -79,6 +92,22 @@
   border-radius: 50%;
   background: #30D158;
   box-shadow: 0 0 8px rgba(48, 209, 88, 0.8);
+}
+
+.statusDotConnecting {
+  background: #FF9F0A;
+  box-shadow: 0 0 8px rgba(255, 159, 10, 0.8);
+  animation: pulseConnecting 1.5s infinite ease-in-out;
+}
+
+.statusDotFailed {
+  background: #FF453A;
+  box-shadow: 0 0 8px rgba(255, 69, 58, 0.8);
+}
+
+@keyframes pulseConnecting {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 .durationTimer {

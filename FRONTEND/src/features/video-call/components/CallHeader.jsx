@@ -1,6 +1,27 @@
 import styles from './VideoCall.module.css';
 
 export default function CallHeader({ ticketId, ticketSubject, customerName, durationFormatted, status }) {
+  const isConnected = status === 'connected';
+  const isFailed = status === 'failed' || status === 'closed';
+
+  let statusLabel = 'Connecting...';
+  let pillClass = `${styles.statusPill} ${styles.statusPillConnecting}`;
+  let dotClass = `${styles.statusDot} ${styles.statusDotConnecting}`;
+
+  if (isConnected) {
+    statusLabel = 'Connected';
+    pillClass = styles.statusPill;
+    dotClass = styles.statusDot;
+  } else if (isFailed) {
+    statusLabel = status === 'failed' ? 'Connection Failed' : 'Call Closed';
+    pillClass = `${styles.statusPill} ${styles.statusPillFailed}`;
+    dotClass = `${styles.statusDot} ${styles.statusDotFailed}`;
+  } else if (status === 'disconnected') {
+    statusLabel = 'Reconnecting...';
+    pillClass = `${styles.statusPill} ${styles.statusPillConnecting}`;
+    dotClass = `${styles.statusDot} ${styles.statusDotConnecting}`;
+  }
+
   return (
     <div className={styles.callHeader}>
       <div className={styles.headerLeft}>
@@ -12,9 +33,9 @@ export default function CallHeader({ ticketId, ticketSubject, customerName, dura
       </div>
 
       <div className={styles.headerRight}>
-        <div className={styles.statusPill}>
-          <span className={styles.statusDot} />
-          <span>{status === 'connected' ? 'Connected' : 'Calling...'}</span>
+        <div className={pillClass}>
+          <span className={dotClass} />
+          <span>{statusLabel}</span>
         </div>
         <div className={styles.durationTimer}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

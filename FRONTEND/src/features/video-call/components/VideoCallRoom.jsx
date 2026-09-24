@@ -5,6 +5,7 @@ import socket from '../../../socket/socket.js';
 import { SIGNALING_EVENTS } from '../constants/signalingEvents.js';
 import { initialVideoCallState } from '../videoCallMockData';
 import useLocalMedia from '../hooks/useLocalMedia';
+import useWebRTC from '../hooks/useWebRTC';
 import CallHeader from './CallHeader';
 import ParticipantTile from './ParticipantTile';
 import CallControls from './CallControls';
@@ -37,6 +38,19 @@ export default function VideoCallRoom() {
     stopMedia,
     startMedia,
   } = useLocalMedia();
+
+  // Peer-to-peer WebRTC connection hook
+  const {
+    remoteStream,
+    connectionState,
+    webRtcError,
+    closePeerConnection,
+  } = useWebRTC({
+    ticketId,
+    user,
+    localStream: mediaStream,
+    isEnded,
+  });
 
   // Determine local vs remote participant based on user role
   const isCustomer = user?.role === 'customer';
@@ -72,11 +86,17 @@ export default function VideoCallRoom() {
   useEffect(() => {
     if (!ticketId) return;
     const cleanId = ticketId.replace('#', '');
-    socket.emit('join-ticket', { ticketId: cleanId, ticketNumber: cleanId });
+    socket.emit('join-ticket', { ticketId: cleanId, ticketNumber: cleanId }, (res) => {
+      if (res?.success && isCustomer) {
+        // Notify room that customer is in the call room to prompt offer negotiation
+        socket.emit(SIGNALING_EVENTS.CALL_ACCEPTED, { ticketNumber: cleanId, ticketId: cleanId });
+      }
+    });
 
     const handleRemoteCallEnded = (data) => {
       const dataTicket = String(data?.ticketNumber || data?.ticketId || '').replace('#', '');
       if (!dataTicket || dataTicket === cleanId) {
+        closePeerConnection();
         stopMedia();
         setIsEnded(true);
       }
@@ -88,7 +108,7 @@ export default function VideoCallRoom() {
       socket.off(SIGNALING_EVENTS.CALL_ENDED, handleRemoteCallEnded);
       socket.emit('leave-ticket', { ticketId: cleanId, ticketNumber: cleanId });
     };
-  }, [ticketId, stopMedia]);
+  }, [ticketId, stopMedia, closePeerConnection, isCustomer]);
 
   const formatDuration = (totalSec) => {
     const hrs = Math.floor(totalSec / 3600);
@@ -129,6 +149,7 @@ export default function VideoCallRoom() {
 
   const handleConfirmEndCall = () => {
     setIsEndModalOpen(false);
+    closePeerConnection();
     stopMedia();
     setIsEnded(true);
     const cleanId = (ticketId || '1018').replace('#', '');
@@ -140,6 +161,7 @@ export default function VideoCallRoom() {
   };
 
   const handleReturnToTicket = () => {
+    closePeerConnection();
     stopMedia();
     const cleanId = (ticketId || '1018').replace('#', '');
     if (user?.role === 'customer') {
@@ -164,17 +186,17 @@ export default function VideoCallRoom() {
 
   return (
     <div className={styles.roomPage}>
-      {/* Call Header */}
+      {/* Call Header with live connection state */}
       <CallHeader
         ticketId={callState.ticketId}
         ticketSubject={callState.ticketSubject}
         customerName={isCustomer ? callState.agent.name : callState.customer.name}
         durationFormatted={formatDuration(seconds)}
-        status="connected"
+        status={connectionState}
       />
 
-      {/* Media Device Failure or Permission Denied Alert Banner */}
-      {mediaError && (
+      {/* Media Device Failure or WebRTC Error Alert Banner */}
+      {(mediaError || webRtcError) && (
         <div className={styles.mediaAlertBanner} role="alert">
           <div className={styles.mediaAlertLeft}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -182,26 +204,30 @@ export default function VideoCallRoom() {
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            <span>{mediaError}</span>
+            <span>{mediaError || webRtcError}</span>
           </div>
-          <button
-            type="button"
-            className={styles.mediaRetryBtn}
-            onClick={startMedia}
-          >
-            ↻ Retry Device Access
-          </button>
+          {mediaError && (
+            <button
+              type="button"
+              className={styles.mediaRetryBtn}
+              onClick={startMedia}
+            >
+              ↻ Retry Device Access
+            </button>
+          )}
         </div>
       )}
 
       {/* Main Workspace Stage */}
       <div className={styles.stageContainer}>
         <div className={styles.videoStage}>
-          {/* Main Feed: Remote Participant Feed (Mock) or Screen Share Canvas */}
+          {/* Main Feed: Remote Participant Feed (WebRTC Remote MediaStream) or Screen Share Canvas */}
           <ParticipantTile
             participant={remoteParticipant}
             isMainView={true}
             isScreenSharing={callState.isScreenSharing}
+            mediaStream={remoteStream}
+            isLocal={false}
           />
 
           {/* Picture-in-Picture Floating Window: Local Participant Camera Feed */}
