@@ -26,12 +26,18 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
   const [remoteStream, setRemoteStream] = useState(null);
   const [connectionState, setConnectionState] = useState('new');
   const [webRtcError, setWebRtcError] = useState(null);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [screenStream, setScreenStream] = useState(null);
 
   // References to preserve state across renders
   const pcRef = useRef(null);
   const candidateQueueRef = useRef([]);
   const isNegotiatingRef = useRef(false);
   const hasOfferedRef = useRef(false);
+  const isScreenSharingRef = useRef(false);
+  const screenStreamRef = useRef(null);
+  const cameraTrackRef = useRef(null);
+  const videoSenderRef = useRef(null);
 
   const cleanTicketId = (ticketId || '').replace('#', '');
   const isOfferer = (user?.role || '').toLowerCase() !== 'customer'; // Agent / Admin is offerer
@@ -40,6 +46,24 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
    * Closes and cleanly destroys the active RTCPeerConnection and resets state.
    */
   const closePeerConnection = useCallback(() => {
+    // Stop active screen sharing tracks if any
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.onended = null;
+          track.stop();
+        } catch (err) {
+          console.warn('[useWebRTC] Error stopping screen track on close:', err);
+        }
+      });
+      screenStreamRef.current = null;
+    }
+    isScreenSharingRef.current = false;
+    cameraTrackRef.current = null;
+    videoSenderRef.current = null;
+    setIsScreenSharing(false);
+    setScreenStream(null);
+
     if (pcRef.current) {
       try {
         pcRef.current.ontrack = null;
@@ -161,14 +185,31 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
 
     const existingSenders = pc.getSenders();
     stream.getTracks().forEach((track) => {
-      const sender = existingSenders.find((s) => s.track && s.track.kind === track.kind);
+      const sender =
+        existingSenders.find((s) => s.track && s.track.kind === track.kind) ||
+        existingSenders.find((s) => s === videoSenderRef.current && track.kind === 'video');
+
+      if (track.kind === 'video') {
+        cameraTrackRef.current = track; // Always store latest camera track reference
+        if (sender) {
+          videoSenderRef.current = sender;
+        }
+        // If screen sharing is actively using the video sender, do not override with camera
+        if (isScreenSharingRef.current) {
+          return;
+        }
+      }
+
       if (sender) {
         sender.replaceTrack(track).catch((err) => {
           console.warn('[useWebRTC] Failed to replaceTrack:', err);
         });
       } else {
         try {
-          pc.addTrack(track, stream);
+          const newSender = pc.addTrack(track, stream);
+          if (track.kind === 'video') {
+            videoSenderRef.current = newSender;
+          }
         } catch (err) {
           console.warn('[useWebRTC] Failed to addTrack:', err);
         }
@@ -353,6 +394,141 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
   }, [closePeerConnection]);
 
   /**
+   * Stops screen sharing, cleans up display tracks, and restores the original camera track.
+   * Step 7 Requirements 6 & 13.
+   */
+  const stopScreenShare = useCallback(async () => {
+    if (!isScreenSharingRef.current && !screenStreamRef.current) return;
+
+    // 1. Stop all tracks from the screen capture stream
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.onended = null;
+          track.stop();
+        } catch (err) {
+          console.warn('[useWebRTC] Failed to stop screen track:', err);
+        }
+      });
+      screenStreamRef.current = null;
+    }
+
+    isScreenSharingRef.current = false;
+    setIsScreenSharing(false);
+    setScreenStream(null);
+
+    // 2. Restore camera track on the existing RTCRtpSender
+    const pc = pcRef.current;
+    if (pc && pc.signalingState !== 'closed') {
+      const senders = pc.getSenders();
+      const videoSender =
+        senders.find((s) => s === videoSenderRef.current) ||
+        senders.find((s) => s.track && s.track.kind === 'video') ||
+        senders.find((s) => cameraTrackRef.current && s.track === cameraTrackRef.current) ||
+        senders.find((s) => s.track === null && !s.dtmf);
+
+      if (videoSender) {
+        try {
+          await videoSender.replaceTrack(cameraTrackRef.current || null);
+        } catch (err) {
+          console.warn('[useWebRTC] Failed to restore camera track:', err);
+        }
+      }
+    }
+  }, []);
+
+  /**
+   * Starts screen sharing: captures screen with audio:false, replaces camera track on RTCRtpSender,
+   * listens for native browser stop sharing, and preserves original camera track.
+   * Step 7 Requirements 1, 2, 3, 7, 9, 10, 12.
+   */
+  const startScreenShare = useCallback(async () => {
+    if (isEnded || !cleanTicketId) return false;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      setWebRtcError('Screen sharing is not supported in this browser.');
+      return false;
+    }
+
+    // If already sharing, stop previous share first
+    if (isScreenSharingRef.current) {
+      await stopScreenShare();
+      return true;
+    }
+
+    try {
+      // Step 7 Requirement 2 & 10: navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+
+      const screenTrack = displayStream.getVideoTracks()[0];
+      if (!screenTrack) {
+        setWebRtcError('No video track found in screen capture stream.');
+        return false;
+      }
+
+      const pc = pcRef.current;
+      if (!pc || pc.signalingState === 'closed') {
+        screenTrack.stop();
+        setWebRtcError('Cannot start screen share: video call peer connection is closed.');
+        return false;
+      }
+
+      // Step 7 Requirement 12: Retain original camera track reference
+      if (!cameraTrackRef.current && localStream) {
+        const vTrack = localStream.getVideoTracks()[0];
+        if (vTrack) {
+          cameraTrackRef.current = vTrack;
+        }
+      }
+
+      // Step 7 Requirement 3: Find existing RTCRtpSender and replace video track with screenTrack
+      const senders = pc.getSenders();
+      let videoSender =
+        senders.find((s) => s === videoSenderRef.current) ||
+        senders.find((s) => s.track && s.track.kind === 'video') ||
+        senders.find((s) => cameraTrackRef.current && s.track === cameraTrackRef.current) ||
+        senders.find((s) => s.track === null && !s.dtmf);
+
+      if (videoSender) {
+        videoSenderRef.current = videoSender;
+        await videoSender.replaceTrack(screenTrack);
+      } else {
+        const newSender = pc.addTrack(screenTrack, displayStream);
+        videoSenderRef.current = newSender;
+      }
+
+      // Step 7 Requirement 7: Handle browser "Stop sharing" button event
+      screenTrack.onended = () => {
+        console.log('[useWebRTC] Screen sharing track ended via browser UI');
+        stopScreenShare();
+      };
+
+      screenStreamRef.current = displayStream;
+      isScreenSharingRef.current = true;
+      setScreenStream(displayStream);
+      setIsScreenSharing(true);
+      setWebRtcError(null);
+      return true;
+    } catch (err) {
+      // Step 7 Requirement 9: Error handling without ending call or crashing
+      if (
+        err.name === 'NotAllowedError' ||
+        err.name === 'PermissionDeniedError' ||
+        err.name === 'AbortError'
+      ) {
+        console.log('[useWebRTC] Screen share selection cancelled or denied by user.');
+      } else {
+        console.error('[useWebRTC] getDisplayMedia error:', err);
+        setWebRtcError(err.message || 'Failed to capture screen.');
+      }
+      return false;
+    }
+  }, [cleanTicketId, isEnded, localStream, stopScreenShare]);
+
+  /**
    * Safe recovery mechanism for disconnected or failed states without duplicating RTCPeerConnection.
    */
   const restartConnection = useCallback(async () => {
@@ -404,6 +580,10 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
     remoteStream,
     connectionState,
     webRtcError,
+    isScreenSharing,
+    screenStream,
+    startScreenShare,
+    stopScreenShare,
     restartConnection,
     closePeerConnection,
   };

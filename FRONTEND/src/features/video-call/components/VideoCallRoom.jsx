@@ -39,11 +39,15 @@ export default function VideoCallRoom() {
     startMedia,
   } = useLocalMedia();
 
-  // Peer-to-peer WebRTC connection hook
+  // Peer-to-peer WebRTC connection hook with screen-sharing capabilities
   const {
     remoteStream,
     connectionState,
     webRtcError,
+    isScreenSharing,
+    screenStream,
+    startScreenShare,
+    stopScreenShare,
     restartConnection,
     closePeerConnection,
   } = useWebRTC({
@@ -53,10 +57,11 @@ export default function VideoCallRoom() {
     isEnded,
   });
 
-  // Track remote participant mute & camera-off state
+  // Track remote participant mute, camera-off, and screen sharing state
   const [remoteMediaState, setRemoteMediaState] = useState({
     isMuted: false,
     isCameraOff: false,
+    isScreenSharing: false,
   });
 
   const isEndedRef = useRef(false);
@@ -104,7 +109,7 @@ export default function VideoCallRoom() {
     return () => clearInterval(interval);
   }, [isEnded]);
 
-  // Sync local microphone/camera state to remote peer over signaling
+  // Sync local microphone/camera/screen-share state to remote peer over signaling
   useEffect(() => {
     if (!ticketId || isEnded) return;
     const cleanId = ticketId.replace('#', '');
@@ -113,8 +118,9 @@ export default function VideoCallRoom() {
       ticketId: cleanId,
       isMuted,
       isCameraOff,
+      isScreenSharing,
     });
-  }, [ticketId, isMuted, isCameraOff, isEnded]);
+  }, [ticketId, isMuted, isCameraOff, isScreenSharing, isEnded]);
 
   // Listen for remote track mute/unmute events on incoming remoteStream
   useEffect(() => {
@@ -165,6 +171,7 @@ export default function VideoCallRoom() {
         setRemoteMediaState({
           isMuted: Boolean(data?.isMuted),
           isCameraOff: Boolean(data?.isCameraOff),
+          isScreenSharing: Boolean(data?.isScreenSharing),
         });
       }
     };
@@ -218,11 +225,12 @@ export default function VideoCallRoom() {
     return `${pad(mins)}:${pad(secs)}`;
   };
 
-  const handleToggleScreenShare = () => {
-    setCallState((prev) => ({
-      ...prev,
-      isScreenSharing: !prev.isScreenSharing,
-    }));
+  const handleToggleScreenShare = async () => {
+    if (isScreenSharing) {
+      await stopScreenShare();
+    } else {
+      await startScreenShare();
+    }
   };
 
   const handleToggleChat = () => {
@@ -331,21 +339,22 @@ export default function VideoCallRoom() {
       {/* Main Workspace Stage */}
       <div className={styles.stageContainer}>
         <div className={styles.videoStage}>
-          {/* Main Feed: Remote Participant Feed (WebRTC Remote MediaStream) or Screen Share Canvas */}
+          {/* Main Feed: Remote Participant Feed (WebRTC Remote MediaStream) or Remote Shared Screen */}
           <ParticipantTile
             participant={remoteParticipant}
             isMainView={true}
-            isScreenSharing={callState.isScreenSharing}
+            isScreenSharing={remoteMediaState.isScreenSharing}
             mediaStream={remoteStream}
             isLocal={false}
           />
 
-          {/* Picture-in-Picture Floating Window: Local Participant Camera Feed */}
+          {/* Picture-in-Picture Floating Window: Local Participant Camera Feed or Local Shared Screen */}
           <ParticipantTile
             participant={localParticipant}
             isMainView={false}
-            mediaStream={mediaStream}
+            mediaStream={isScreenSharing ? screenStream : mediaStream}
             isLocal={true}
+            isScreenSharing={isScreenSharing}
           />
         </div>
 
@@ -365,7 +374,7 @@ export default function VideoCallRoom() {
         onToggleMute={toggleMute}
         isCameraOff={isCameraOff}
         onToggleCamera={toggleCamera}
-        isScreenSharing={callState.isScreenSharing}
+        isScreenSharing={isScreenSharing}
         onToggleScreenShare={handleToggleScreenShare}
         isChatOpen={callState.isChatOpen}
         onToggleChat={handleToggleChat}

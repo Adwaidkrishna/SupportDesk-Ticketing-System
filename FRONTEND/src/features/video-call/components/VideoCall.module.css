@@ -837,6 +837,42 @@
   transform: scaleX(-1);
 }
 
+.screenShareVideo {
+  object-fit: contain !important;
+  background: #000000;
+}
+
+.screenShareBadge {
+  color: #0A84FF !important;
+  background: rgba(10, 132, 255, 0.15) !important;
+  border: 1px solid rgba(10, 132, 255, 0.3) !important;
+}
+
+.screenShareHeaderBar {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: rgba(10, 132, 255, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.screenShareHeaderBar svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .mediaAlertBanner {
   background: rgba(255, 69, 58, 0.12);
   border: 1px solid rgba(255, 69, 58, 0.35);

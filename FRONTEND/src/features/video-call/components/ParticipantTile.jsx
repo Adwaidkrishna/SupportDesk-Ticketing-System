@@ -29,8 +29,8 @@ export default function ParticipantTile({
 
   return (
     <div className={`${styles.participantTile} ${isMainView ? styles.mainViewTile : styles.pipTile}`}>
-      {/* Screen Sharing Overlay View */}
-      {isMainView && isScreenSharing ? (
+      {/* Screen Sharing Overlay View: Mock Graphic Fallback only if no real media stream */}
+      {isMainView && isScreenSharing && !mediaStream ? (
         <div className={styles.screenShareCanvas}>
           <div className={styles.screenShareHeader}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -58,9 +58,20 @@ export default function ParticipantTile({
           </div>
         </div>
       ) : (
-        /* Standard Video Feed / Avatar Placeholder */
+        /* Standard Video Feed / Screen Share Video / Avatar Placeholder */
         <div className={styles.videoSurface}>
-          {isCameraOff ? (
+          {isMainView && isScreenSharing && mediaStream && (
+            <div className={styles.screenShareHeaderBar}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              <span>{participant.name} is sharing their screen</span>
+            </div>
+          )}
+
+          {isCameraOff && !isScreenSharing ? (
             <div className={styles.cameraOffOverlay}>
               <div className={styles.avatarLarge} style={{ background: avatarBg || '#0A84FF' }}>
                 {initials}
@@ -74,10 +85,14 @@ export default function ParticipantTile({
                 autoPlay
                 playsInline
                 muted={isLocal}
-                className={`${styles.videoElement} ${isLocal ? styles.localVideoMirror : ''}`}
+                className={`${styles.videoElement} ${isLocal && !isScreenSharing ? styles.localVideoMirror : ''} ${isScreenSharing ? styles.screenShareVideo : ''}`}
               />
-              <div className={styles.videoStreamBadge}>
-                {isLocal ? 'Local Camera • Live' : 'HD 1080p • Live Stream'}
+              <div className={`${styles.videoStreamBadge} ${isScreenSharing ? styles.screenShareBadge : ''}`}>
+                {isScreenSharing
+                  ? (isLocal ? '🖥️ Sharing Screen • Live' : '🖥️ Screen Sharing • Live')
+                  : isLocal
+                    ? 'Local Camera • Live'
+                    : 'HD 1080p • Live Stream'}
               </div>
             </>
           ) : (

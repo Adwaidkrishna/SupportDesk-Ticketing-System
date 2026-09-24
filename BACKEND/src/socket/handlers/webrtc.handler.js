@@ -404,6 +404,7 @@ export const registerWebRtcHandlers = (io, socket) => {
         senderId: socket.user.userId,
         isMuted: typeof data?.isMuted === 'boolean' ? data.isMuted : false,
         isCameraOff: typeof data?.isCameraOff === 'boolean' ? data.isCameraOff : false,
+        isScreenSharing: typeof data?.isScreenSharing === 'boolean' ? data.isScreenSharing : false,
       });
 
       if (typeof callback === 'function') {
