@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import socket from '../../../socket/socket.js';
 import {
   getTicketById,
@@ -8,6 +8,8 @@ import {
   reopenTicket,
 } from '../services/ticket.service';
 import styles from './TicketDetails.module.css';
+import IncomingCallBanner from '../../video-call/components/IncomingCallBanner';
+import { SIGNALING_EVENTS } from '../../video-call/constants/signalingEvents.js';
 
 /**
  * Ticket Details page component.
@@ -17,11 +19,13 @@ import styles from './TicketDetails.module.css';
  */
 export default function TicketDetails() {
   const { ticketId } = useParams();
+  const navigate = useNavigate();
 
   // Ticket Details state
   const [ticket, setTicket] = useState(null);
   const [loadingTicket, setLoadingTicket] = useState(true);
   const [ticketError, setTicketError] = useState('');
+  const [incomingCall, setIncomingCall] = useState(null);
 
   // Reopen and Toast state
   const [reopening, setReopening] = useState(false);
@@ -118,6 +122,48 @@ export default function TicketDetails() {
       socket.off('ticket:status', handleStatusUpdate);
     };
   }, [ticket?.ticketNumber, ticket?.id, ticket?._id]);
+
+  // 4. Socket.IO: Listen for WebRTC video call signaling events
+  useEffect(() => {
+    const isTicketMatch = (data) => {
+      const targetNumber = ticket?.ticketNumber;
+      const targetId = ticket?._id || ticket?.id;
+      return (
+        data?.ticketNumber === targetNumber ||
+        String(data?.ticketId) === String(targetId) ||
+        data?.ticketNumber === ticketId ||
+        String(data?.ticketId) === String(ticketId)
+      );
+    };
+
+    const handleIncomingCall = (callData) => {
+      if (isTicketMatch(callData)) {
+        setIncomingCall({
+          ticketNumber: callData.ticketNumber,
+          ticketId: callData.ticketId,
+          ticketSubject: callData.ticketSubject || ticket?.subject,
+          agentName: callData.callerName || 'Support Agent',
+          callerId: callData.callerId,
+        });
+      }
+    };
+
+    const handleCallEnded = (data) => {
+      if (isTicketMatch(data)) {
+        setIncomingCall(null);
+      }
+    };
+
+    socket.on(SIGNALING_EVENTS.CALL_INCOMING, handleIncomingCall);
+    socket.on(SIGNALING_EVENTS.CALL_INITIATE, handleIncomingCall);
+    socket.on(SIGNALING_EVENTS.CALL_ENDED, handleCallEnded);
+
+    return () => {
+      socket.off(SIGNALING_EVENTS.CALL_INCOMING, handleIncomingCall);
+      socket.off(SIGNALING_EVENTS.CALL_INITIATE, handleIncomingCall);
+      socket.off(SIGNALING_EVENTS.CALL_ENDED, handleCallEnded);
+    };
+  }, [ticket?.ticketNumber, ticket?._id, ticket?.id, ticketId, ticket?.subject]);
 
   // Fetch ticket details
   useEffect(() => {
@@ -246,6 +292,49 @@ export default function TicketDetails() {
     } finally {
       setSendingMessage(false);
     }
+  };
+
+  const handleAcceptCall = () => {
+    const targetTicket = incomingCall?.ticketNumber || ticket?.ticketNumber || ticketId;
+    const targetId = incomingCall?.ticketId || ticket?._id || ticket?.id || ticketId;
+
+    socket.emit(
+      SIGNALING_EVENTS.CALL_ACCEPTED,
+      {
+        ticketNumber: targetTicket,
+        ticketId: targetId,
+      },
+      (res) => {
+        if (res && res.success === false) {
+          console.error('Call acceptance signaling failed:', res.error);
+        }
+      }
+    );
+
+    setIncomingCall(null);
+    const cleanId = String(targetTicket).replace('#', '');
+    navigate(`/ticket/${cleanId}/call`);
+  };
+
+  const handleDeclineCall = () => {
+    const targetTicket = incomingCall?.ticketNumber || ticket?.ticketNumber || ticketId;
+    const targetId = incomingCall?.ticketId || ticket?._id || ticket?.id || ticketId;
+
+    socket.emit(
+      SIGNALING_EVENTS.CALL_DECLINED,
+      {
+        ticketNumber: targetTicket,
+        ticketId: targetId,
+        reason: 'Customer declined call invitation',
+      },
+      (res) => {
+        if (res && res.success === false) {
+          console.error('Call decline signaling failed:', res.error);
+        }
+      }
+    );
+
+    setIncomingCall(null);
   };
 
   const handleReopenTicket = async () => {
@@ -399,6 +488,16 @@ export default function TicketDetails() {
 
   return (
     <div className={styles.page}>
+      {incomingCall && (
+        <IncomingCallBanner
+          agentName={incomingCall.agentName}
+          ticketId={incomingCall.ticketNumber || incomingCall.ticketId}
+          ticketSubject={incomingCall.ticketSubject}
+          onDecline={handleDeclineCall}
+          onJoin={handleAcceptCall}
+        />
+      )}
+
       <div className={styles.topSection}>
         {/* Ticket Header (One Horizontal Row) */}
         <div className={styles.header}>

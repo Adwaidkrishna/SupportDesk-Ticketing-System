@@ -126,7 +126,7 @@ async function runStage10Tests() {
       return new Promise((resolve, reject) => {
         const socket = io(SOCKET_URL, {
           auth: { token },
-          transports: ['websocket'],
+          transports: ['polling', 'websocket'],
           reconnection: false,
         });
         socket.on('connect', () => resolve(socket));

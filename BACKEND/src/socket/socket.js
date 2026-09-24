@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import mongoose from 'mongoose';
 import { verifyToken } from '../utils/jwt.util.js';
 import Ticket from '../models/Ticket.js';
+import registerWebRtcHandlers from './handlers/webrtc.handler.js';
 
 let io;
 
@@ -146,6 +147,9 @@ const initializeSocket = (httpServer) => {
         }
       }
     });
+
+    // Register WebRTC Video Call Signaling Handlers
+    registerWebRtcHandlers(io, socket);
 
     socket.on('disconnect', () => {
       console.log(`🔌 Socket disconnected: ${socket.id}`);

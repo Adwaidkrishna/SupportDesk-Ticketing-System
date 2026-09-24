@@ -34,7 +34,7 @@ async function runSocketAuthTests() {
   await new Promise((resolve) => {
     const socket = io(SOCKET_URL, {
       auth: { token: validToken },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: false,
     });
 
@@ -58,7 +58,7 @@ async function runSocketAuthTests() {
   await new Promise((resolve) => {
     const socket = io(SOCKET_URL, {
       auth: {},
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: false,
     });
 
@@ -85,7 +85,7 @@ async function runSocketAuthTests() {
   await new Promise((resolve) => {
     const socket = io(SOCKET_URL, {
       auth: { token: invalidToken },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: false,
     });
 

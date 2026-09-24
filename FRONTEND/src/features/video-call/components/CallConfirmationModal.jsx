@@ -1,6 +1,18 @@
 import styles from './VideoCall.module.css';
 
-export default function CallConfirmationModal({ customerName, ticketId, ticketSubject, onCancel, onConfirm }) {
+export default function CallConfirmationModal({
+  customerName,
+  ticketId,
+  ticketSubject,
+  ticket,
+  isCalling = false,
+  onCancel,
+  onConfirm,
+}) {
+  const displayName = customerName || ticket?.customerName || 'Customer';
+  const displayId = ticketId || ticket?.id || '#1018';
+  const displaySubject = ticketSubject || ticket?.subject || 'Support Ticket';
+
   return (
     <div className={styles.modalBackdrop} onClick={onCancel}>
       <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
@@ -11,22 +23,36 @@ export default function CallConfirmationModal({ customerName, ticketId, ticketSu
           </svg>
         </div>
 
-        <h3 className={styles.modalTitle}>Start Support Video Call?</h3>
+        <h3 className={styles.modalTitle}>
+          {isCalling ? 'Calling Customer...' : 'Start Support Video Call?'}
+        </h3>
 
         <p className={styles.modalText}>
-          You are about to invite <strong>{customerName}</strong> to a video call regarding ticket{' '}
-          <strong>{ticketId}</strong> (<em>{ticketSubject}</em>).
+          {isCalling ? (
+            <>
+              Ringing <strong>{displayName}</strong> for ticket{' '}
+              <strong>{displayId}</strong>. Waiting for the customer to accept the video call invitation...
+            </>
+          ) : (
+            <>
+              You are about to invite <strong>{displayName}</strong> to a video call regarding ticket{' '}
+              <strong>{displayId}</strong> (<em>{displaySubject}</em>).
+            </>
+          )}
         </p>
 
         <div className={styles.modalActions}>
           <button type="button" className={styles.cancelBtn} onClick={onCancel}>
-            Cancel
+            {isCalling ? 'Cancel Call' : 'Cancel'}
           </button>
-          <button type="button" className={styles.startCallBtn} onClick={onConfirm}>
-            Start Video Call →
-          </button>
+          {!isCalling && (
+            <button type="button" className={styles.startCallBtn} onClick={onConfirm}>
+              Start Video Call →
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

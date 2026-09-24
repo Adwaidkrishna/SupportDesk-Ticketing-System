@@ -12,6 +12,7 @@ import {
 } from '../services/agentTicket.service';
 import styles from './AgentTicketDetails.module.css';
 import CallConfirmationModal from '../../video-call/components/CallConfirmationModal';
+import { SIGNALING_EVENTS } from '../../video-call/constants/signalingEvents.js';
 
 /**
  * Agent Ticket Details Page.
@@ -28,8 +29,8 @@ export default function AgentTicketDetails() {
   // Ticket Details state
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
+  const [isCalling, setIsCalling] = useState(false);
 
   // Status Action state
   const [statusUpdating, setStatusUpdating] = useState(false);
@@ -201,6 +202,75 @@ export default function AgentTicketDetails() {
       socket.off('ticket:status', handleStatusUpdate);
     };
   }, [ticket?.ticketNumber, ticket?.id, ticket?._id]);
+
+  // 4. Socket.IO: Listen for WebRTC video call signaling events
+  useEffect(() => {
+    const isTicketMatch = (data) => {
+      const targetNumber = ticket?.ticketNumber;
+      const targetId = ticket?._id || ticket?.id;
+      return (
+        data?.ticketNumber === targetNumber ||
+        String(data?.ticketId) === String(targetId) ||
+        data?.ticketNumber === ticketId ||
+        String(data?.ticketId) === String(ticketId)
+      );
+    };
+
+    const handleCallAccepted = (data) => {
+      if (isTicketMatch(data)) {
+        setIsCalling(false);
+        setShowCallModal(false);
+        showToast('✓ Customer accepted the call! Entering video room...');
+        const cleanId = (ticket?.ticketNumber || ticketId).replace('#', '');
+        navigate(`/ticket/${cleanId}/call`);
+      }
+    };
+
+    const handleCallDeclined = (data) => {
+      if (isTicketMatch(data)) {
+        setIsCalling(false);
+        setShowCallModal(false);
+        showToast(`⚠️ Call declined: ${data?.reason || 'Customer declined the call'}`);
+      }
+    };
+
+    const handleCallBusy = (data) => {
+      if (isTicketMatch(data)) {
+        setIsCalling(false);
+        setShowCallModal(false);
+        showToast('⚠️ Customer is currently busy in another call');
+      }
+    };
+
+    const handleCallEnded = (data) => {
+      if (isTicketMatch(data)) {
+        setIsCalling(false);
+        setShowCallModal(false);
+      }
+    };
+
+    const handleCallError = (data) => {
+      if (isTicketMatch(data)) {
+        setIsCalling(false);
+        setShowCallModal(false);
+        showToast(`⚠️ Video call error: ${data?.message || data?.error || 'Signaling failure'}`);
+      }
+    };
+
+    socket.on(SIGNALING_EVENTS.CALL_ACCEPTED, handleCallAccepted);
+    socket.on(SIGNALING_EVENTS.CALL_DECLINED, handleCallDeclined);
+    socket.on(SIGNALING_EVENTS.CALL_BUSY, handleCallBusy);
+    socket.on(SIGNALING_EVENTS.CALL_ENDED, handleCallEnded);
+    socket.on(SIGNALING_EVENTS.CALL_ERROR, handleCallError);
+
+    return () => {
+      socket.off(SIGNALING_EVENTS.CALL_ACCEPTED, handleCallAccepted);
+      socket.off(SIGNALING_EVENTS.CALL_DECLINED, handleCallDeclined);
+      socket.off(SIGNALING_EVENTS.CALL_BUSY, handleCallBusy);
+      socket.off(SIGNALING_EVENTS.CALL_ENDED, handleCallEnded);
+      socket.off(SIGNALING_EVENTS.CALL_ERROR, handleCallError);
+    };
+  }, [ticket?.ticketNumber, ticket?._id, ticket?.id, ticketId, navigate]);
 
   // Fetch ticket messages when assigned to current agent
   useEffect(() => {
@@ -461,13 +531,41 @@ export default function AgentTicketDetails() {
   };
 
   const handleStartCallClick = () => {
+    setIsCalling(false);
     setShowCallModal(true);
   };
 
   const handleConfirmStartCall = () => {
+    setIsCalling(true);
+
+    const targetTicketNumber = ticket?.ticketNumber || ticketId;
+    const targetTicketId = ticket?._id || ticket?.id || ticketId;
+
+    const payload = {
+      ticketNumber: targetTicketNumber,
+      ticketId: targetTicketId,
+      callerName: user?.name || 'Support Agent',
+    };
+
+    socket.emit(SIGNALING_EVENTS.CALL_INITIATE, payload, (response) => {
+      if (response && response.success === false) {
+        setIsCalling(false);
+        setShowCallModal(false);
+        showToast(`⚠️ Unable to initiate call: ${response.error || 'Request failed'}`);
+      }
+    });
+  };
+
+  const handleCancelCallModal = () => {
+    if (isCalling) {
+      socket.emit(SIGNALING_EVENTS.CALL_ENDED, {
+        ticketNumber: ticket?.ticketNumber || ticketId,
+        ticketId: ticket?._id || ticket?.id || ticketId,
+        reason: 'Call cancelled by agent',
+      });
+    }
+    setIsCalling(false);
     setShowCallModal(false);
-    const cleanId = (ticket?.ticketNumber || ticketId).replace('#', '');
-    navigate(`/ticket/${cleanId}/call`);
   };
 
   // Loading State
@@ -621,13 +719,17 @@ export default function AgentTicketDetails() {
 
       {showCallModal && (
         <CallConfirmationModal
+          customerName={ticket.customer?.name || ticket.customerId?.name || 'Customer User'}
+          ticketId={ticket.ticketNumber || ticket.id}
+          ticketSubject={ticket.subject}
           ticket={{
             id: ticket.ticketNumber || ticket.id,
             subject: ticket.subject,
-            customerName: ticket.customer?.name || 'Customer User',
+            customerName: ticket.customer?.name || ticket.customerId?.name || 'Customer User',
           }}
+          isCalling={isCalling}
           onConfirm={handleConfirmStartCall}
-          onCancel={() => setShowCallModal(false)}
+          onCancel={handleCancelCallModal}
         />
       )}
 

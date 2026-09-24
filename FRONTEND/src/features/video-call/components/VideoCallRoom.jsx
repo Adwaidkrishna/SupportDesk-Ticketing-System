@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../auth/context/AuthContext';
+import socket from '../../../socket/socket.js';
+import { SIGNALING_EVENTS } from '../constants/signalingEvents.js';
 import { initialVideoCallState } from '../videoCallMockData';
 import CallHeader from './CallHeader';
 import ParticipantTile from './ParticipantTile';
@@ -11,6 +14,7 @@ import styles from './VideoCall.module.css';
 export default function VideoCallRoom() {
   const { ticketId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [callState, setCallState] = useState({
     ...initialVideoCallState,
@@ -29,6 +33,27 @@ export default function VideoCallRoom() {
     }, 1000);
     return () => clearInterval(interval);
   }, [isEnded]);
+
+  // Join ticket socket room and listen for remote call end
+  useEffect(() => {
+    if (!ticketId) return;
+    const cleanId = ticketId.replace('#', '');
+    socket.emit('join-ticket', { ticketId: cleanId, ticketNumber: cleanId });
+
+    const handleRemoteCallEnded = (data) => {
+      const dataTicket = String(data?.ticketNumber || data?.ticketId || '').replace('#', '');
+      if (!dataTicket || dataTicket === cleanId) {
+        setIsEnded(true);
+      }
+    };
+
+    socket.on(SIGNALING_EVENTS.CALL_ENDED, handleRemoteCallEnded);
+
+    return () => {
+      socket.off(SIGNALING_EVENTS.CALL_ENDED, handleRemoteCallEnded);
+      socket.emit('leave-ticket', { ticketId: cleanId, ticketNumber: cleanId });
+    };
+  }, [ticketId]);
 
   const formatDuration = (totalSec) => {
     const hrs = Math.floor(totalSec / 3600);
@@ -84,12 +109,21 @@ export default function VideoCallRoom() {
   const handleConfirmEndCall = () => {
     setIsEndModalOpen(false);
     setIsEnded(true);
+    const cleanId = (ticketId || '1018').replace('#', '');
+    socket.emit(SIGNALING_EVENTS.CALL_ENDED, {
+      ticketNumber: cleanId,
+      ticketId: cleanId,
+      reason: 'Call ended by participant',
+    });
   };
 
   const handleReturnToTicket = () => {
     const cleanId = (ticketId || '1018').replace('#', '');
-    // Navigate back to Agent or Customer ticket details
-    navigate(`/agent/tickets/${cleanId}`);
+    if (user?.role === 'customer') {
+      navigate(`/customer/tickets/${cleanId}`);
+    } else {
+      navigate(`/agent/tickets/${cleanId}`);
+    }
   };
 
   if (isEnded) {
