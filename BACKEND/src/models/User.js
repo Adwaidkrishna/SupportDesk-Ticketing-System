@@ -51,4 +51,8 @@ const UserSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// High-frequency query index: filtering users by role (e.g. notifyRole('admin'), agent listings)
+UserSchema.index({ role: 1 });
+
 export default mongoose.model('User', UserSchema);
+

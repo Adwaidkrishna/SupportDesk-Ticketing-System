@@ -29,4 +29,8 @@ const TicketMessageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// High-frequency query index: ticket message retrieval sorted chronologically
+TicketMessageSchema.index({ ticketId: 1, createdAt: 1 });
+
 export default mongoose.model('TicketMessage', TicketMessageSchema);
+

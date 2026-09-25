@@ -115,4 +115,8 @@ const TicketSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// High-frequency query index: SLA monitoring query for active tickets by status and deadline
+TicketSchema.index({ status: 1, 'sla.responseDeadline': 1 });
+
 export default mongoose.model('Ticket', TicketSchema);
+
