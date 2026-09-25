@@ -261,10 +261,20 @@ export const recordFirstResponse = async (ticketId, responderRole, _responderId)
 
 /**
  * Record ticket resolution time
- * @param {string} ticketId
+ * @param {string|Object} ticketOrId - Ticket MongoDB ObjectId or in-memory Ticket document
+ * @param {Object} [options]
+ * @param {boolean} [options.save=true] - Whether to persist the document to MongoDB immediately
+ * @returns {Promise<Object>} Updated ticket document
  */
-export const recordResolution = async (ticketId) => {
-  const ticket = await Ticket.findById(ticketId);
+export const recordResolution = async (ticketOrId, options = { save: true }) => {
+  let ticket;
+
+  if (ticketOrId && typeof ticketOrId === 'object' && ticketOrId.sla) {
+    ticket = ticketOrId;
+  } else {
+    ticket = await Ticket.findById(ticketOrId);
+  }
+
   if (!ticket || !ticket.sla) {
     return ticket;
   }
@@ -279,7 +289,10 @@ export const recordResolution = async (ticketId) => {
     ticket.sla.isBreached = true;
   }
 
-  await ticket.save();
+  if (options.save !== false) {
+    await ticket.save();
+  }
+
   return ticket;
 };
 

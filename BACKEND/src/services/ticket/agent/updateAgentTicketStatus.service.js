@@ -55,7 +55,7 @@ export const updateAgentTicketStatus = async (ticketId, agentId, status) => {
   ticket.status = status;
   if (status === 'RESOLVED') {
     const { recordResolution } = await import('../../sla/sla.service.js');
-    await recordResolution(ticket._id);
+    await recordResolution(ticket, { save: false });
   }
   await ticket.save();
 
