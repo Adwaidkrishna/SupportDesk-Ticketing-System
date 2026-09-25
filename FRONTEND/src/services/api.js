@@ -23,7 +23,22 @@ export class ApiError extends Error {
  * @returns {Promise<any>} Parsed JSON response payload
  */
 export async function request(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  if (options.params) {
+    const searchParams = new URLSearchParams();
+    Object.entries(options.params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== '') {
+        searchParams.append(key, val);
+      }
+    });
+    const qs = searchParams.toString();
+    if (qs) {
+      path += (path.includes('?') ? '&' : '?') + qs;
+    }
+  }
+
+  const url = `${API_BASE_URL}${path}`;
 
   const token = localStorage.getItem('token');
   const hasValidToken = Boolean(token && token !== 'null' && token !== 'undefined');

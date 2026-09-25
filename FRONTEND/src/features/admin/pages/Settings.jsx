@@ -1,61 +1,145 @@
-import { useState } from 'react';
-import { adminSettingsData } from '../adminMockData';
+import { useState, useEffect, useCallback } from 'react';
+import { getAdminSettings, updateAdminSettings } from '../services/adminSettings.service';
 import styles from './Settings.module.css';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('general');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [initialError, setInitialError] = useState(null);
 
-  // Local Form States
-  const [general, setGeneral] = useState({ ...adminSettingsData.general });
-  const [ticketSettings, setTicketSettings] = useState({ ...adminSettingsData.ticketSettings });
-  const [notifications, setNotifications] = useState({ ...adminSettingsData.notifications });
-  const [security, setSecurity] = useState({ ...adminSettingsData.security });
-  const [appearance, setAppearance] = useState({ ...adminSettingsData.appearance });
+  // Form states populated from real database
+  const [general, setGeneral] = useState({
+    companyName: '',
+    supportEmail: '',
+    timezone: 'UTC +05:30 (Asia/Kolkata)',
+    defaultLanguage: 'English (US)',
+  });
 
-  const [toastMsg, setToastMsg] = useState(null);
+  const [ticketSettings, setTicketSettings] = useState({
+    allowCustomerReopen: true,
+    requireCategory: true,
+    allowAttachments: true,
+    autoCloseResolvedDays: 3,
+    defaultPriority: 'Medium',
+  });
 
-  const showToast = (msg) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+  const [notifications, setNotifications] = useState({
+    newTicketAlert: true,
+    assignmentAlert: true,
+    customerReplyAlert: true,
+    slaWarningAlert: true,
+    slaBreachAlert: true,
+    escalationAlert: true,
+    dailyReportEmail: true,
+  });
+
+  const [security, setSecurity] = useState({
+    sessionTimeoutMins: 30,
+    passwordPolicy: 'Strong (Min 8 chars, numbers, symbols)',
+    twoFactorAuth: 'Optional',
+    loginAlerts: true,
+  });
+
+  const [appearance, setAppearance] = useState({
+    theme: 'Dark Navy (Default)',
+    compactMode: false,
+    sidebarBehavior: 'Expanded',
+  });
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
   };
 
-  const handleGeneralSubmit = (e) => {
+  const loadSettings = useCallback(async () => {
+    try {
+      setLoading(true);
+      setInitialError(null);
+      const res = await getAdminSettings();
+      if (res && res.data) {
+        if (res.data.general) setGeneral(res.data.general);
+        if (res.data.ticketSettings) setTicketSettings(res.data.ticketSettings);
+        if (res.data.notifications) setNotifications(res.data.notifications);
+        if (res.data.security) setSecurity(res.data.security);
+        if (res.data.appearance) setAppearance(res.data.appearance);
+      }
+    } catch (err) {
+      console.error('Failed to load system settings:', err);
+      setInitialError(err?.message || 'Failed to load system settings from backend.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  const saveSection = async (sectionName, payload, successMsg) => {
+    try {
+      setSaving(true);
+      const res = await updateAdminSettings({ [sectionName]: payload });
+      const msg = res?.message || successMsg;
+      showToast(msg, 'success');
+    } catch (err) {
+      console.error(`Failed to save ${sectionName}:`, err);
+      showToast(err?.message || `Failed to update ${sectionName}.`, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleGeneralSubmit = async (e) => {
     e.preventDefault();
-    showToast('General platform settings updated.');
+    await saveSection('general', general, 'General platform settings updated successfully.');
   };
 
-  const handleTicketSettingsSubmit = (e) => {
+  const handleTicketSettingsSubmit = async (e) => {
     e.preventDefault();
-    showToast('Ticket rules & auto-close defaults saved.');
+    await saveSection('ticketSettings', ticketSettings, 'Ticket rules & defaults persisted successfully.');
   };
 
-  const handleNotifToggle = (key) => {
-    setNotifications((prev) => {
-      const updated = { ...prev, [key]: !prev[key] };
-      showToast('Notification preference saved.');
-      return updated;
-    });
+  const handleNotifToggle = async (key) => {
+    const updated = { ...notifications, [key]: !notifications[key] };
+    setNotifications(updated);
+    await saveSection('notifications', updated, 'Notification preference saved successfully.');
   };
 
-  const handleSecuritySubmit = (e) => {
+  const handleSecuritySubmit = async (e) => {
     e.preventDefault();
-    showToast('Security policy updated.');
+    await saveSection('security', security, 'Security policies updated successfully.');
   };
 
-  const handleAppearanceSubmit = (e) => {
+  const handleAppearanceSubmit = async (e) => {
     e.preventDefault();
-    showToast('Appearance settings saved.');
+    await saveSection('appearance', appearance, 'Appearance settings saved successfully.');
   };
 
   return (
     <div className={styles.page}>
       {/* Toast Feedback */}
-      {toastMsg && (
-        <div className={styles.toast}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          <span>{toastMsg}</span>
+      {toast && (
+        <div
+          className={styles.toast}
+          style={{
+            background: toast.type === 'error' ? '#FF453A' : '#30D158',
+          }}
+        >
+          {toast.type === 'error' ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+          <span>{toast.message}</span>
         </div>
       )}
 
@@ -111,368 +195,429 @@ export default function Settings() {
 
       {/* Settings Tab Body */}
       <div className={styles.contentCard}>
-        {/* Tab 1: General Settings */}
-        {activeTab === 'general' && (
-          <form onSubmit={handleGeneralSubmit} className={styles.formSection}>
-            <h3 className={styles.sectionTitle}>General Platform Settings</h3>
-            <p className={styles.sectionDesc}>Configure company identity and default timezone settings.</p>
-
-            <div className={styles.grid2}>
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Company Name</label>
-                <input
-                  type="text"
-                  className={styles.input}
-                  value={general.companyName}
-                  onChange={(e) => setGeneral({ ...general, companyName: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Support Email Address</label>
-                <input
-                  type="email"
-                  className={styles.input}
-                  value={general.supportEmail}
-                  onChange={(e) => setGeneral({ ...general, supportEmail: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>System Timezone</label>
-                <select
-                  className={styles.select}
-                  value={general.timezone}
-                  onChange={(e) => setGeneral({ ...general, timezone: e.target.value })}
-                >
-                  <option value="UTC +05:30 (Asia/Kolkata)">UTC +05:30 (Asia/Kolkata)</option>
-                  <option value="UTC +00:00 (London/GMT)">UTC +00:00 (London/GMT)</option>
-                  <option value="UTC -05:00 (US Eastern)">UTC -05:00 (US Eastern)</option>
-                  <option value="UTC -08:00 (US Pacific)">UTC -08:00 (US Pacific)</option>
-                </select>
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Default Language</label>
-                <select
-                  className={styles.select}
-                  value={general.defaultLanguage}
-                  onChange={(e) => setGeneral({ ...general, defaultLanguage: e.target.value })}
-                >
-                  <option value="English (US)">English (US)</option>
-                  <option value="English (UK)">English (UK)</option>
-                  <option value="Spanish">Spanish</option>
-                  <option value="French">French</option>
-                </select>
-              </div>
-            </div>
-
-            <div className={styles.formActions}>
-              <button type="submit" className={styles.saveBtn}>Save General Settings</button>
-            </div>
-          </form>
-        )}
-
-        {/* Tab 2: Ticket Settings */}
-        {activeTab === 'tickets' && (
-          <form onSubmit={handleTicketSettingsSubmit} className={styles.formSection}>
-            <h3 className={styles.sectionTitle}>Ticket Workflow & Rules</h3>
-            <p className={styles.sectionDesc}>Define automation behavior and ticket submission rules.</p>
-
-            <div className={styles.toggleList}>
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>Allow Customer Ticket Reopen</h4>
-                  <p>Permit customers to reopen resolved tickets within 7 days.</p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={ticketSettings.allowCustomerReopen}
-                    onChange={(e) => setTicketSettings({ ...ticketSettings, allowCustomerReopen: e.target.checked })}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>Require Category Selection</h4>
-                  <p>Enforce mandatory category selection upon new ticket creation.</p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={ticketSettings.requireCategory}
-                    onChange={(e) => setTicketSettings({ ...ticketSettings, requireCategory: e.target.checked })}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>Allow File Attachments</h4>
-                  <p>Enable customers and agents to attach logs and screenshots.</p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={ticketSettings.allowAttachments}
-                    onChange={(e) => setTicketSettings({ ...ticketSettings, allowAttachments: e.target.checked })}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-            </div>
-
-            <div className={styles.grid2} style={{ marginTop: '1rem' }}>
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Auto-Close Resolved Tickets</label>
-                <select
-                  className={styles.select}
-                  value={ticketSettings.autoCloseResolvedDays}
-                  onChange={(e) => setTicketSettings({ ...ticketSettings, autoCloseResolvedDays: Number(e.target.value) })}
-                >
-                  <option value={3}>After 3 Days of Inactivity</option>
-                  <option value={5}>After 5 Days of Inactivity</option>
-                  <option value={7}>After 7 Days of Inactivity</option>
-                  <option value={0}>Disabled (Never Auto-Close)</option>
-                </select>
-              </div>
-
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Default New Ticket Priority</label>
-                <select
-                  className={styles.select}
-                  value={ticketSettings.defaultPriority}
-                  onChange={(e) => setTicketSettings({ ...ticketSettings, defaultPriority: e.target.value })}
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
-              </div>
-            </div>
-
-            <div className={styles.formActions}>
-              <button type="submit" className={styles.saveBtn}>Save Ticket Rules</button>
-            </div>
-          </form>
-        )}
-
-        {/* Tab 3: Notification Settings */}
-        {activeTab === 'notifications' && (
-          <div className={styles.formSection}>
-            <h3 className={styles.sectionTitle}>System Alert Channels</h3>
-            <p className={styles.sectionDesc}>Select platform events that trigger email and dashboard alerts.</p>
-
-            <div className={styles.toggleList}>
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>New Ticket Submission Alert</h4>
-                  <p>Alert admins when a new unassigned ticket is logged.</p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={notifications.newTicketAlert}
-                    onChange={() => handleNotifToggle('newTicketAlert')}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>Ticket Assignment Notification</h4>
-                  <p>Notify agents when a ticket is assigned to their personal queue.</p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={notifications.assignmentAlert}
-                    onChange={() => handleNotifToggle('assignmentAlert')}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>SLA Warning & Breach Alerts</h4>
-                  <p>Send urgent notification when SLA is approaching breach threshold.</p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={notifications.slaWarningAlert}
-                    onChange={() => handleNotifToggle('slaWarningAlert')}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>Ticket Escalation Alert</h4>
-                  <p>Notify management when a ticket is escalated to Tier 3 support.</p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={notifications.escalationAlert}
-                    onChange={() => handleNotifToggle('escalationAlert')}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>Daily Executive Summary Email</h4>
-                  <p>Send morning PDF summary report to system administrators.</p>
-                </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={notifications.dailyReportEmail}
-                    onChange={() => handleNotifToggle('dailyReportEmail')}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-            </div>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>⏳</div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', margin: '0 0 0.5rem' }}>
+              Loading System Settings...
+            </h3>
+            <p style={{ color: '#8e8e93', margin: 0 }}>
+              Retrieving live configuration from database.
+            </p>
           </div>
-        )}
+        ) : initialError ? (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>⚠️</div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', margin: '0 0 0.5rem' }}>
+              Failed to Load Settings
+            </h3>
+            <p style={{ color: '#FF453A', margin: '0 0 1.25rem' }}>{initialError}</p>
+            <button
+              type="button"
+              className={styles.saveBtn}
+              onClick={loadSettings}
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Tab 1: General Settings */}
+            {activeTab === 'general' && (
+              <form onSubmit={handleGeneralSubmit} className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>General Platform Settings</h3>
+                <p className={styles.sectionDesc}>Configure company identity and default timezone settings.</p>
 
-        {/* Tab 4: Security Policy */}
-        {activeTab === 'security' && (
-          <form onSubmit={handleSecuritySubmit} className={styles.formSection}>
-            <h3 className={styles.sectionTitle}>Security Controls & Policies</h3>
-            <p className={styles.sectionDesc}>Configure session timeout, password complexity, and 2FA settings.</p>
+                <div className={styles.grid2}>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Company Name</label>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      value={general.companyName}
+                      onChange={(e) => setGeneral({ ...general, companyName: e.target.value })}
+                      required
+                    />
+                  </div>
 
-            <div className={styles.grid2}>
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Idle Session Timeout</label>
-                <select
-                  className={styles.select}
-                  value={security.sessionTimeoutMins}
-                  onChange={(e) => setSecurity({ ...security, sessionTimeoutMins: Number(e.target.value) })}
-                >
-                  <option value={15}>15 Minutes</option>
-                  <option value={30}>30 Minutes</option>
-                  <option value={60}>60 Minutes</option>
-                </select>
-              </div>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Support Email Address</label>
+                    <input
+                      type="email"
+                      className={styles.input}
+                      value={general.supportEmail}
+                      onChange={(e) => setGeneral({ ...general, supportEmail: e.target.value })}
+                      required
+                    />
+                  </div>
 
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Password Policy Standard</label>
-                <select
-                  className={styles.select}
-                  value={security.passwordPolicy}
-                  onChange={(e) => setSecurity({ ...security, passwordPolicy: e.target.value })}
-                >
-                  <option value="Strong (Min 8 chars, numbers, symbols)">Strong (Min 8 chars, numbers, symbols)</option>
-                  <option value="Strict (Min 12 chars, special symbols)">Strict (Min 12 chars, special symbols)</option>
-                  <option value="Standard">Standard</option>
-                </select>
-              </div>
-            </div>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>System Timezone</label>
+                    <select
+                      className={styles.select}
+                      value={general.timezone}
+                      onChange={(e) => setGeneral({ ...general, timezone: e.target.value })}
+                    >
+                      <option value="UTC +05:30 (Asia/Kolkata)">UTC +05:30 (Asia/Kolkata)</option>
+                      <option value="UTC +00:00 (London/GMT)">UTC +00:00 (London/GMT)</option>
+                      <option value="UTC -05:00 (US Eastern)">UTC -05:00 (US Eastern)</option>
+                      <option value="UTC -08:00 (US Pacific)">UTC -08:00 (US Pacific)</option>
+                    </select>
+                  </div>
 
-            <div className={styles.toggleList} style={{ marginTop: '1rem' }}>
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>Two-Factor Authentication (2FA)</h4>
-                  <p>Require 2FA verification for admin and support agent logins.</p>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Default Language</label>
+                    <select
+                      className={styles.select}
+                      value={general.defaultLanguage}
+                      onChange={(e) => setGeneral({ ...general, defaultLanguage: e.target.value })}
+                    >
+                      <option value="English (US)">English (US)</option>
+                      <option value="English (UK)">English (UK)</option>
+                      <option value="Spanish">Spanish</option>
+                      <option value="French">French</option>
+                    </select>
+                  </div>
                 </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={security.twoFactorAuth === 'Required' || security.twoFactorAuth === true}
-                    onChange={(e) => setSecurity({ ...security, twoFactorAuth: e.target.checked ? 'Required' : 'Optional' })}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
 
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>Login Anomaly Alerts</h4>
-                  <p>Send security email if account is accessed from unknown IP location.</p>
+                <div className={styles.formActions}>
+                  <button type="submit" className={styles.saveBtn} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save General Settings'}
+                  </button>
                 </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={security.loginAlerts}
-                    onChange={(e) => setSecurity({ ...security, loginAlerts: e.target.checked })}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-            </div>
+              </form>
+            )}
 
-            <div className={styles.formActions}>
-              <button type="submit" className={styles.saveBtn}>Save Security Policy</button>
-            </div>
-          </form>
-        )}
+            {/* Tab 2: Ticket Settings */}
+            {activeTab === 'tickets' && (
+              <form onSubmit={handleTicketSettingsSubmit} className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>Ticket Workflow & Rules</h3>
+                <p className={styles.sectionDesc}>Define automation behavior and ticket submission rules.</p>
 
-        {/* Tab 5: Appearance */}
-        {activeTab === 'appearance' && (
-          <form onSubmit={handleAppearanceSubmit} className={styles.formSection}>
-            <h3 className={styles.sectionTitle}>Appearance & Theme Preferences</h3>
-            <p className={styles.sectionDesc}>Customize application UI density and theme standards.</p>
+                <div className={styles.toggleList}>
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>Allow Customer Ticket Reopen</h4>
+                      <p>Permit customers to reopen resolved tickets within 7 days.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={ticketSettings.allowCustomerReopen}
+                        onChange={(e) =>
+                          setTicketSettings({ ...ticketSettings, allowCustomerReopen: e.target.checked })
+                        }
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
 
-            <div className={styles.grid2}>
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Visual Theme Standard</label>
-                <select
-                  className={styles.select}
-                  value={appearance.theme}
-                  onChange={(e) => setAppearance({ ...appearance, theme: e.target.value })}
-                >
-                  <option value="Dark Navy (Default)">Dark Navy (SupportDesk Default)</option>
-                  <option value="Midnight Black">Midnight Black</option>
-                </select>
-              </div>
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>Require Category Selection</h4>
+                      <p>Enforce mandatory category selection upon new ticket creation.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={ticketSettings.requireCategory}
+                        onChange={(e) =>
+                          setTicketSettings({ ...ticketSettings, requireCategory: e.target.checked })
+                        }
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
 
-              <div className={styles.inputGroup}>
-                <label className={styles.label}>Sidebar Behavior</label>
-                <select
-                  className={styles.select}
-                  value={appearance.sidebarBehavior}
-                  onChange={(e) => setAppearance({ ...appearance, sidebarBehavior: e.target.value })}
-                >
-                  <option value="Expanded">Always Expanded</option>
-                  <option value="Collapsed">Compact Icons Only</option>
-                </select>
-              </div>
-            </div>
-
-            <div className={styles.toggleList} style={{ marginTop: '1rem' }}>
-              <div className={styles.toggleRow}>
-                <div>
-                  <h4>Compact Table Data Density</h4>
-                  <p>Reduce padding in ticket and user tables to show more items per page.</p>
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>Allow File Attachments</h4>
+                      <p>Enable customers and agents to attach logs and screenshots.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={ticketSettings.allowAttachments}
+                        onChange={(e) =>
+                          setTicketSettings({ ...ticketSettings, allowAttachments: e.target.checked })
+                        }
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
                 </div>
-                <label className={styles.switch}>
-                  <input
-                    type="checkbox"
-                    checked={appearance.compactMode}
-                    onChange={(e) => setAppearance({ ...appearance, compactMode: e.target.checked })}
-                  />
-                  <span className={styles.slider} />
-                </label>
-              </div>
-            </div>
 
-            <div className={styles.formActions}>
-              <button type="submit" className={styles.saveBtn}>Save Appearance Settings</button>
-            </div>
-          </form>
+                <div className={styles.grid2} style={{ marginTop: '1rem' }}>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Auto-Close Resolved Tickets</label>
+                    <select
+                      className={styles.select}
+                      value={ticketSettings.autoCloseResolvedDays}
+                      onChange={(e) =>
+                        setTicketSettings({
+                          ...ticketSettings,
+                          autoCloseResolvedDays: Number(e.target.value),
+                        })
+                      }
+                    >
+                      <option value={3}>After 3 Days of Inactivity</option>
+                      <option value={5}>After 5 Days of Inactivity</option>
+                      <option value={7}>After 7 Days of Inactivity</option>
+                      <option value={0}>Disabled (Never Auto-Close)</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Default New Ticket Priority</label>
+                    <select
+                      className={styles.select}
+                      value={ticketSettings.defaultPriority}
+                      onChange={(e) =>
+                        setTicketSettings({ ...ticketSettings, defaultPriority: e.target.value })
+                      }
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.formActions}>
+                  <button type="submit" className={styles.saveBtn} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Ticket Rules'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Tab 3: Notification Settings */}
+            {activeTab === 'notifications' && (
+              <div className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>System Alert Channels</h3>
+                <p className={styles.sectionDesc}>Select platform events that trigger email and dashboard alerts.</p>
+
+                <div className={styles.toggleList}>
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>New Ticket Submission Alert</h4>
+                      <p>Alert admins when a new unassigned ticket is logged.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={notifications.newTicketAlert}
+                        onChange={() => handleNotifToggle('newTicketAlert')}
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
+
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>Ticket Assignment Notification</h4>
+                      <p>Notify agents when a ticket is assigned to their personal queue.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={notifications.assignmentAlert}
+                        onChange={() => handleNotifToggle('assignmentAlert')}
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
+
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>SLA Warning & Breach Alerts</h4>
+                      <p>Send urgent notification when SLA is approaching breach threshold.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={notifications.slaWarningAlert}
+                        onChange={() => handleNotifToggle('slaWarningAlert')}
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
+
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>Ticket Escalation Alert</h4>
+                      <p>Notify management when a ticket is escalated to Tier 3 support.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={notifications.escalationAlert}
+                        onChange={() => handleNotifToggle('escalationAlert')}
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
+
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>Daily Executive Summary Email</h4>
+                      <p>Send morning PDF summary report to system administrators.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={notifications.dailyReportEmail}
+                        onChange={() => handleNotifToggle('dailyReportEmail')}
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab 4: Security Policy */}
+            {activeTab === 'security' && (
+              <form onSubmit={handleSecuritySubmit} className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>Security Controls & Policies</h3>
+                <p className={styles.sectionDesc}>Configure session timeout, password complexity, and 2FA settings.</p>
+
+                <div className={styles.grid2}>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Idle Session Timeout</label>
+                    <select
+                      className={styles.select}
+                      value={security.sessionTimeoutMins}
+                      onChange={(e) =>
+                        setSecurity({ ...security, sessionTimeoutMins: Number(e.target.value) })
+                      }
+                    >
+                      <option value={15}>15 Minutes</option>
+                      <option value={30}>30 Minutes</option>
+                      <option value={60}>60 Minutes</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Password Policy Standard</label>
+                    <select
+                      className={styles.select}
+                      value={security.passwordPolicy}
+                      onChange={(e) => setSecurity({ ...security, passwordPolicy: e.target.value })}
+                    >
+                      <option value="Strong (Min 8 chars, numbers, symbols)">Strong (Min 8 chars, numbers, symbols)</option>
+                      <option value="Strict (Min 12 chars, special symbols)">Strict (Min 12 chars, special symbols)</option>
+                      <option value="Standard">Standard</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.toggleList} style={{ marginTop: '1rem' }}>
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>Two-Factor Authentication (2FA)</h4>
+                      <p>Require 2FA verification for admin and support agent logins.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={security.twoFactorAuth === 'Required' || security.twoFactorAuth === true}
+                        onChange={(e) =>
+                          setSecurity({
+                            ...security,
+                            twoFactorAuth: e.target.checked ? 'Required' : 'Optional',
+                          })
+                        }
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
+
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>Login Anomaly Alerts</h4>
+                      <p>Send security email if account is accessed from unknown IP location.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={security.loginAlerts}
+                        onChange={(e) => setSecurity({ ...security, loginAlerts: e.target.checked })}
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className={styles.formActions}>
+                  <button type="submit" className={styles.saveBtn} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Security Policy'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Tab 5: Appearance */}
+            {activeTab === 'appearance' && (
+              <form onSubmit={handleAppearanceSubmit} className={styles.formSection}>
+                <h3 className={styles.sectionTitle}>Appearance & Theme Preferences</h3>
+                <p className={styles.sectionDesc}>Customize application UI density and theme standards.</p>
+
+                <div className={styles.grid2}>
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Visual Theme Standard</label>
+                    <select
+                      className={styles.select}
+                      value={appearance.theme}
+                      onChange={(e) => setAppearance({ ...appearance, theme: e.target.value })}
+                    >
+                      <option value="Dark Navy (Default)">Dark Navy (SupportDesk Default)</option>
+                      <option value="Midnight Black">Midnight Black</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.inputGroup}>
+                    <label className={styles.label}>Sidebar Behavior</label>
+                    <select
+                      className={styles.select}
+                      value={appearance.sidebarBehavior}
+                      onChange={(e) =>
+                        setAppearance({ ...appearance, sidebarBehavior: e.target.value })
+                      }
+                    >
+                      <option value="Expanded">Always Expanded</option>
+                      <option value="Collapsed">Compact Icons Only</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.toggleList} style={{ marginTop: '1rem' }}>
+                  <div className={styles.toggleRow}>
+                    <div>
+                      <h4>Compact Table Data Density</h4>
+                      <p>Reduce padding in ticket and user tables to show more items per page.</p>
+                    </div>
+                    <label className={styles.switch}>
+                      <input
+                        type="checkbox"
+                        checked={appearance.compactMode}
+                        onChange={(e) =>
+                          setAppearance({ ...appearance, compactMode: e.target.checked })
+                        }
+                      />
+                      <span className={styles.slider} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className={styles.formActions}>
+                  <button type="submit" className={styles.saveBtn} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Appearance Settings'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </>
         )}
       </div>
     </div>

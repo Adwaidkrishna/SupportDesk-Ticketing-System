@@ -34,6 +34,9 @@ import slaControllers, {
   toggleSlaPolicyStatus,
 } from './sla/index.js';
 
+import { getReports } from './reports/getReports.controller.js';
+import { getSettings, updateSettings } from './settings/settings.controller.js';
+
 export {
   // Users
   getUsers,
@@ -61,6 +64,11 @@ export {
   createSlaPolicy,
   updateSlaPolicy,
   toggleSlaPolicyStatus,
+  // Reports
+  getReports,
+  // Settings
+  getSettings,
+  updateSettings,
 };
 
 export default {
@@ -69,4 +77,7 @@ export default {
   ...categoriesControllers,
   ...ticketsControllers,
   ...slaControllers,
+  getReports,
+  getSettings,
+  updateSettings,
 };

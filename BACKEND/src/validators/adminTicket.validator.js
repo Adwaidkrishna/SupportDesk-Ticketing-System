@@ -8,7 +8,7 @@ const SUPPORTED_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
  * Validates query parameters for GET /api/v1/admin/tickets
  */
 export const validateTicketQuery = (req, res, next) => {
-  const { page, limit, search, status, priority, categoryId, agentId } = req.query;
+  const { page, limit, search, status, priority, categoryId, agentId, isEscalated } = req.query;
 
   let parsedPage = 1;
   let parsedLimit = 20;
@@ -91,6 +91,7 @@ export const validateTicketQuery = (req, res, next) => {
     priority: sanitizedPriority,
     categoryId: sanitizedCategoryId,
     agentId: sanitizedAgentId,
+    isEscalated: isEscalated === 'true' || isEscalated === true,
   };
 
   next();

@@ -15,9 +15,19 @@ import User from '../../../models/User.js';
  * @returns {Promise<Object>} Formatted tickets list, pagination info, and stats
  */
 export const getTickets = async (queryParams) => {
-  const { page = 1, limit = 20, search, status, priority, categoryId, agentId } = queryParams;
+  const { page = 1, limit = 20, search, status, priority, categoryId, agentId, isEscalated } = queryParams;
 
   const matchConditions = [];
+
+  if (isEscalated === true || isEscalated === 'true') {
+    matchConditions.push({
+      status: { $in: ['OPEN', 'IN_PROGRESS'] },
+      $or: [
+        { priority: 'URGENT' },
+        { 'sla.isBreached': true },
+      ],
+    });
+  }
 
   if (status) {
     matchConditions.push({ status });
@@ -126,6 +136,7 @@ export const getTickets = async (queryParams) => {
         }
       : null,
     agent: t.assignedTo ? t.assignedTo.name : 'Unassigned',
+    sla: t.sla || null,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
   }));

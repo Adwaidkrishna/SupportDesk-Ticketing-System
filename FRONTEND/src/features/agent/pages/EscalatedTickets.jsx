@@ -1,19 +1,110 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { escalatedTicketsList } from '../agentMockData';
+import { getEscalatedTickets } from '../services/agentTicket.service';
 import styles from './EscalatedTickets.module.css';
 
 export default function EscalatedTickets() {
   const navigate = useNavigate();
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const filtered = escalatedTicketsList.filter(
-    (t) =>
-      t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.reason.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const fetchEscalated = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await getEscalatedTickets({ limit: 100 });
+      if (res && res.data) {
+        setTickets(res.data.tickets || []);
+      }
+    } catch (err) {
+      console.error('Failed to load escalated tickets:', err);
+      setError(err?.message || 'Failed to retrieve escalated tickets.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEscalated();
+  }, [fetchEscalated]);
+
+  const getReason = (t) => {
+    if (t.sla?.isBreached || t.sla?.resolutionBreached) {
+      return 'SLA Breach';
+    }
+    if (t.priority === 'URGENT') {
+      return 'Critical Priority';
+    }
+    if (!t.assignedTo || t.agent === 'Unassigned') {
+      return 'Awaiting Assignment';
+    }
+    return 'Engineering Escalation';
+  };
+
+  const [currentTime] = useState(() => Date.now());
+
+  const getSlaText = (t, nowTs = currentTime) => {
+    if (!t.sla) return { text: 'Standard SLA', isBreached: false, isRisk: false };
+    if (t.sla.isBreached || t.sla.resolutionBreached) {
+      return { text: 'SLA Breached', isBreached: true, isRisk: false };
+    }
+    if (t.sla.resolutionDeadline) {
+      const remainingMs = new Date(t.sla.resolutionDeadline).getTime() - nowTs;
+      if (remainingMs <= 0) {
+        return { text: 'SLA Breached', isBreached: true, isRisk: false };
+      }
+      const mins = Math.round(remainingMs / (60 * 1000));
+      if (mins <= 60) {
+        return { text: `${mins}m left (At Risk)`, isBreached: false, isRisk: true };
+      }
+      const hrs = Math.round(mins / 60);
+      return { text: `${hrs}h remaining`, isBreached: false, isRisk: false };
+    }
+    return { text: t.sla.policyName || 'Standard SLA', isBreached: false, isRisk: false };
+  };
+
+  const filtered = useMemo(() => {
+    return tickets.filter((t) => {
+      const q = searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      const ticketId = (t.ticketNumber || t.id || t._id || '').toLowerCase();
+      const subject = (t.subject || '').toLowerCase();
+      const customer = (t.customer?.name || t.customer?.email || '').toLowerCase();
+      const reason = getReason(t).toLowerCase();
+      const details = (t.description || '').toLowerCase();
+
+      return (
+        ticketId.includes(q) ||
+        subject.includes(q) ||
+        customer.includes(q) ||
+        reason.includes(q) ||
+        details.includes(q)
+      );
+    });
+  }, [tickets, searchQuery]);
+
+  // Derived real KPI metrics
+  const totalEscalated = tickets.length;
+  const criticalCount = useMemo(() => {
+    return tickets.filter((t) => t.priority === 'URGENT').length;
+  }, [tickets]);
+
+  const awaitingManagementCount = useMemo(() => {
+    return tickets.filter((t) => !t.assignedTo || t.agent === 'Unassigned').length;
+  }, [tickets]);
+
+  const slaAtRiskBreachedCount = useMemo(() => {
+    return tickets.filter((t) => {
+      if (t.sla?.isBreached || t.sla?.resolutionBreached) return true;
+      if (t.sla?.resolutionDeadline) {
+        const remainingMs = new Date(t.sla.resolutionDeadline).getTime() - currentTime;
+        return remainingMs <= 60 * 60 * 1000;
+      }
+      return false;
+    }).length;
+  }, [tickets, currentTime]);
 
   return (
     <div className={styles.page}>
@@ -29,7 +120,7 @@ export default function EscalatedTickets() {
 
         <div className={styles.headerBadge}>
           <span className={styles.alertIcon}>🚨</span>
-          <span>{escalatedTicketsList.length} Active Escalations</span>
+          <span>{totalEscalated} Active Escalations</span>
         </div>
       </div>
 
@@ -38,7 +129,7 @@ export default function EscalatedTickets() {
         <div className={styles.summaryCard}>
           <div className={styles.statTop}>
             <span className={styles.statIcon}>🔥</span>
-            <span className={styles.statVal}>{escalatedTicketsList.length}</span>
+            <span className={styles.statVal}>{totalEscalated}</span>
           </div>
           <span className={styles.statLabel}>Total Escalated</span>
         </div>
@@ -47,7 +138,7 @@ export default function EscalatedTickets() {
           <div className={styles.statTop}>
             <span className={styles.statIcon} style={{ color: '#FF453A' }}>⚠️</span>
             <span className={styles.statVal} style={{ color: '#FF453A' }}>
-              {escalatedTicketsList.filter((t) => t.priority === 'Critical').length}
+              {criticalCount}
             </span>
           </div>
           <span className={styles.statLabel}>Critical Priority</span>
@@ -57,7 +148,7 @@ export default function EscalatedTickets() {
           <div className={styles.statTop}>
             <span className={styles.statIcon} style={{ color: '#FF9F0A' }}>⏳</span>
             <span className={styles.statVal} style={{ color: '#FF9F0A' }}>
-              2
+              {awaitingManagementCount}
             </span>
           </div>
           <span className={styles.statLabel}>Awaiting Management</span>
@@ -67,7 +158,7 @@ export default function EscalatedTickets() {
           <div className={styles.statTop}>
             <span className={styles.statIcon} style={{ color: '#BF5AF2' }}>⏱</span>
             <span className={styles.statVal} style={{ color: '#BF5AF2' }}>
-              {escalatedTicketsList.filter((t) => t.sla.includes('Breached') || t.sla.includes('Risk')).length}
+              {slaAtRiskBreachedCount}
             </span>
           </div>
           <span className={styles.statLabel}>SLA At Risk / Breached</span>
@@ -93,7 +184,35 @@ export default function EscalatedTickets() {
 
       {/* Escalated Tickets Table & Cards */}
       <div className={styles.listCard}>
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>⏳</div>
+            <h3 className={styles.emptyTitle}>Loading Escalated Tickets...</h3>
+            <p className={styles.emptyDesc}>Retrieving priority tickets from live backend.</p>
+          </div>
+        ) : error ? (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>⚠️</div>
+            <h3 className={styles.emptyTitle}>Failed to Load Escalated Tickets</h3>
+            <p className={styles.emptyDesc}>{error}</p>
+            <button
+              type="button"
+              className={styles.resetFiltersBtn}
+              onClick={fetchEscalated}
+              style={{
+                marginTop: '1rem',
+                background: '#FF453A',
+                color: '#fff',
+                border: 'none',
+                padding: '0.6rem 1.25rem',
+                borderRadius: '8px',
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>🛡️</div>
             <h3 className={styles.emptyTitle}>No escalated tickets found</h3>
@@ -117,68 +236,86 @@ export default function EscalatedTickets() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((t) => (
-                    <tr
-                      key={t.id}
-                      className={styles.tableRow}
-                      onClick={() => navigate(`/agent/tickets/${t.id.replace('#', '')}`)}
-                    >
-                      <td className={styles.idCell}>{t.id}</td>
-                      <td className={styles.subjectCell}>
-                        <div className={styles.subjectGroup}>
-                          <span className={styles.subjectText}>{t.subject}</span>
-                          <span className={styles.detailsSnippet}>{t.details}</span>
-                        </div>
-                      </td>
-                      <td className={styles.customerCell}>{t.customer}</td>
-                      <td>
-                        <span className={styles.priorityCritical}>{t.priority}</span>
-                      </td>
-                      <td>
-                        <span className={styles.reasonBadge}>{t.reason}</span>
-                      </td>
-                      <td className={styles.agentCell}>{t.assignedAgent}</td>
-                      <td className={t.sla.includes('Breached') ? styles.slaBreached : styles.slaRisk}>
-                        {t.sla}
-                      </td>
-                      <td>
-                        <span className={styles.actionLink}>Investigate →</span>
-                      </td>
-                    </tr>
-                  ))}
+                  {filtered.map((t) => {
+                    const ticketIdStr = t.ticketNumber || t.id || t._id;
+                    const customerName = t.customer?.name || t.customer?.email || 'Unknown';
+                    const agentName = t.agent || t.assignedTo?.name || 'Unassigned';
+                    const reason = getReason(t);
+                    const slaInfo = getSlaText(t);
+
+                    return (
+                      <tr
+                        key={t.id || t._id}
+                        className={styles.tableRow}
+                        onClick={() => navigate(`/agent/tickets/${ticketIdStr}`)}
+                      >
+                        <td className={styles.idCell}>{ticketIdStr}</td>
+                        <td className={styles.subjectCell}>
+                          <div className={styles.subjectGroup}>
+                            <span className={styles.subjectText}>{t.subject}</span>
+                            <span className={styles.detailsSnippet}>
+                              {t.description ? t.description.slice(0, 90) : ''}
+                            </span>
+                          </div>
+                        </td>
+                        <td className={styles.customerCell}>{customerName}</td>
+                        <td>
+                          <span className={styles.priorityCritical}>{t.priority}</span>
+                        </td>
+                        <td>
+                          <span className={styles.reasonBadge}>{reason}</span>
+                        </td>
+                        <td className={styles.agentCell}>{agentName}</td>
+                        <td className={slaInfo.isBreached ? styles.slaBreached : styles.slaRisk}>
+                          {slaInfo.text}
+                        </td>
+                        <td>
+                          <span className={styles.actionLink}>Investigate →</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Card List View */}
             <div className={styles.mobileList}>
-              {filtered.map((t) => (
-                <div
-                  key={t.id}
-                  className={styles.mobileCard}
-                  onClick={() => navigate(`/agent/tickets/${t.id.replace('#', '')}`)}
-                >
-                  <div className={styles.mobileTop}>
-                    <span className={styles.idCell}>{t.id}</span>
-                    <span className={styles.priorityCritical}>{t.priority}</span>
-                  </div>
+              {filtered.map((t) => {
+                const ticketIdStr = t.ticketNumber || t.id || t._id;
+                const customerName = t.customer?.name || t.customer?.email || 'Unknown';
+                const agentName = t.agent || t.assignedTo?.name || 'Unassigned';
+                const reason = getReason(t);
+                const slaInfo = getSlaText(t);
 
-                  <h4 className={styles.mobileSubject}>{t.subject}</h4>
-                  <p className={styles.mobileReason}>⚠️ Reason: <strong>{t.reason}</strong></p>
+                return (
+                  <div
+                    key={t.id || t._id}
+                    className={styles.mobileCard}
+                    onClick={() => navigate(`/agent/tickets/${ticketIdStr}`)}
+                  >
+                    <div className={styles.mobileTop}>
+                      <span className={styles.idCell}>{ticketIdStr}</span>
+                      <span className={styles.priorityCritical}>{t.priority}</span>
+                    </div>
 
-                  <div className={styles.mobileMeta}>
-                    <span>👤 {t.customer}</span>
-                    <span>👨‍💻 {t.assignedAgent}</span>
-                  </div>
+                    <h4 className={styles.mobileSubject}>{t.subject}</h4>
+                    <p className={styles.mobileReason}>⚠️ Reason: <strong>{reason}</strong></p>
 
-                  <div className={styles.mobileFooter}>
-                    <span className={t.sla.includes('Breached') ? styles.slaBreached : styles.slaRisk}>
-                      ⏱ {t.sla}
-                    </span>
-                    <span className={styles.actionLink}>Investigate →</span>
+                    <div className={styles.mobileMeta}>
+                      <span>👤 {customerName}</span>
+                      <span>👨‍💻 {agentName}</span>
+                    </div>
+
+                    <div className={styles.mobileFooter}>
+                      <span className={slaInfo.isBreached ? styles.slaBreached : styles.slaRisk}>
+                        ⏱ {slaInfo.text}
+                      </span>
+                      <span className={styles.actionLink}>Investigate →</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}

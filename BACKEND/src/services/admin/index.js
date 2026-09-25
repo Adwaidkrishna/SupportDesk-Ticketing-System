@@ -34,6 +34,15 @@ import slaServices, {
   toggleSlaPolicyStatus,
 } from './sla/index.js';
 
+import reportsServices, {
+  getReports,
+} from './reports/getReports.service.js';
+
+import settingsServices, {
+  getSettings,
+  updateSettings,
+} from './settings/settings.service.js';
+
 export {
   // Users
   getUsers,
@@ -61,6 +70,11 @@ export {
   createSlaPolicy,
   updateSlaPolicy,
   toggleSlaPolicyStatus,
+  // Reports
+  getReports,
+  // Settings
+  getSettings,
+  updateSettings,
 };
 
 export default {
@@ -69,4 +83,6 @@ export default {
   ...categoriesServices,
   ...ticketsServices,
   ...slaServices,
+  ...reportsServices,
+  ...settingsServices,
 };

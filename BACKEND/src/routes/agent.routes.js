@@ -8,8 +8,19 @@ import {
   validateMessageInput,
   validateUpdateTicketStatusInput,
 } from '../validators/ticket.validator.js';
+import { validateTicketQuery } from '../validators/adminTicket.validator.js';
+import adminController from '../controllers/admin/index.js';
 
 const router = express.Router();
+
+// GET /api/v1/agent/tickets - Browse all organizational tickets with filtering and pagination
+router.get(
+  '/tickets',
+  authenticateUser,
+  authorizeRoles('agent', 'admin'),
+  validateTicketQuery,
+  adminController.getTickets
+);
 
 // GET /api/v1/agent/queue - Unassigned OPEN tickets queue for agents
 router.get(

@@ -7,6 +7,8 @@ import adminAgentsRoutes from './adminAgents.routes.js';
 import adminCategoriesRoutes from './adminCategories.routes.js';
 import adminTicketsRoutes from './adminTickets.routes.js';
 import adminSlaRoutes from './adminSla.routes.js';
+import adminReportsRoutes from './adminReports.routes.js';
+import adminSettingsRoutes from './adminSettings.routes.js';
 
 const router = express.Router();
 
@@ -20,5 +22,7 @@ router.use('/agents', adminAgentsRoutes);
 router.use('/categories', adminCategoriesRoutes);
 router.use('/tickets', adminTicketsRoutes);
 router.use('/sla', adminSlaRoutes);
+router.use('/reports', adminReportsRoutes);
+router.use('/settings', adminSettingsRoutes);
 
 export default router;

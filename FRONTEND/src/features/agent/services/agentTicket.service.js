@@ -110,6 +110,24 @@ export async function reopenTicket(ticketId) {
   return api.patch(`/tickets/${ticketId}/reopen`);
 }
 
+/**
+ * Fetch all tickets across the organization for agent directory.
+ * @param {Object} [params] - { page, limit, search, status, priority, categoryId, agentId }
+ * @returns {Promise<{ success: boolean, data: { tickets: Array, pagination: Object, stats: Object } }>}
+ */
+export async function getAllAgentTickets(params = {}) {
+  return api.get('/agent/tickets', { params });
+}
+
+/**
+ * Fetch escalated high-priority/breached tickets across the organization.
+ * @param {Object} [params] - { page, limit, search }
+ * @returns {Promise<{ success: boolean, data: { tickets: Array, pagination: Object, stats: Object } }>}
+ */
+export async function getEscalatedTickets(params = {}) {
+  return api.get('/agent/tickets', { params: { ...params, isEscalated: 'true' } });
+}
+
 export default {
   getAgentQueue,
   getAgentTicketById,
@@ -119,5 +137,7 @@ export default {
   getAgentAssignedTickets,
   updateAgentTicketStatus,
   reopenTicket,
+  getAllAgentTickets,
+  getEscalatedTickets,
 };
 
