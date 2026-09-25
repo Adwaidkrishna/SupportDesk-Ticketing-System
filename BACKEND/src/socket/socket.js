@@ -3,15 +3,13 @@ import mongoose from 'mongoose';
 import { verifyToken } from '../utils/jwt.util.js';
 import Ticket from '../models/Ticket.js';
 import registerWebRtcHandlers from './handlers/webrtc.handler.js';
+import { socketCorsOptions } from '../config/cors.js';
 
 let io;
 
 const initializeSocket = (httpServer) => {
   io = new Server(httpServer, {
-    cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
-      credentials: true,
-    },
+    cors: socketCorsOptions,
   });
 
   io.use((socket, next) => {

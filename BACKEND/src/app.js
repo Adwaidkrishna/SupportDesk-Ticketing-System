@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { expressCorsOptions } from './config/cors.js';
 import helmet from 'helmet';
 import authRoutes from './routes/auth.routes.js';
 import categoryRoutes from './routes/category.routes.js';
@@ -17,29 +18,9 @@ const app = express();
 // X-XSS-Protection, Referrer-Policy, and more.
 app.use(helmet());
 
-// ─── CORS (H-04 FIX) ─────────────────────────────────────────────────────────
-// Explicit allowlist from environment — NOT 'origin: true' (reflects any origin).
-const rawOrigins = process.env.ALLOWED_ORIGINS || 'http://localhost:5173';
-const allowedOrigins = rawOrigins.split(',').map((o) => o.trim());
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (e.g., server-to-server, Postman, curl)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-      // Return 403 — do not reflect origin or expose details
-      const corsErr = new Error('CORS policy: request origin not permitted.');
-      corsErr.statusCode = 403;
-      return callback(corsErr, false);
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+// ─── CORS (L-02 FIX) ─────────────────────────────────────────────────────────
+// Shared allowlist from environment via config/cors.js (aligns Express & Socket.IO)
+app.use(cors(expressCorsOptions));
 
 // ─── Body Parsing (L-01 FIX) ─────────────────────────────────────────────────
 // Explicit 50kb limit — auth payloads are small; no reason to accept large bodies.
