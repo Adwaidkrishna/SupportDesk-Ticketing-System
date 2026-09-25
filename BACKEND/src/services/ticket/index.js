@@ -1,4 +1,9 @@
-import { createTicket, generateTicketNumber } from './customer/createTicket.service.js';
+import {
+  createTicket,
+  generateTicketNumber,
+  syncTicketCounter,
+  getHighestExistingTicketNumber,
+} from './customer/createTicket.service.js';
 import { getMyTickets } from './customer/getMyTickets.service.js';
 import { getTicketByIdForCustomer } from './customer/getTicketDetails.service.js';
 import { getTicketMessages } from './customer/getTicketMessages.service.js';
@@ -17,6 +22,8 @@ import { reopenTicket } from './shared/reopenTicket.service.js';
 export {
   createTicket,
   generateTicketNumber,
+  syncTicketCounter,
+  getHighestExistingTicketNumber,
   getMyTickets,
   getTicketByIdForCustomer,
   getTicketMessages,
@@ -34,6 +41,8 @@ export {
 export default {
   createTicket,
   generateTicketNumber,
+  syncTicketCounter,
+  getHighestExistingTicketNumber,
   getMyTickets,
   getTicketByIdForCustomer,
   getTicketMessages,
