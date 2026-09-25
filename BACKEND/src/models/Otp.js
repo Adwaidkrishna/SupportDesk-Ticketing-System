@@ -20,4 +20,8 @@ const OtpSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// MongoDB TTL Index: automatically delete document when expiresAt timestamp is reached
+OtpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 export default mongoose.model('Otp', OtpSchema);
+

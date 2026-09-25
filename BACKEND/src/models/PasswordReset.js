@@ -24,4 +24,8 @@ const PasswordResetSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// MongoDB TTL Index: automatically delete document when expiresAt timestamp is reached
+PasswordResetSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 export default mongoose.model('PasswordReset', PasswordResetSchema);
+
