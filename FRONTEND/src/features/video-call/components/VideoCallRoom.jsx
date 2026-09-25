@@ -23,7 +23,7 @@ export default function VideoCallRoom() {
     ticketId: ticketId ? `#${ticketId}` : initialVideoCallState.ticketId,
   });
 
-  const [seconds, setSeconds] = useState(callState.durationSeconds);
+  const [seconds, setSeconds] = useState(0);
   const [isEndModalOpen, setIsEndModalOpen] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
 

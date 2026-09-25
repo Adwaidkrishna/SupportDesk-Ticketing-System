@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Ticket from '../../../models/Ticket.js';
 import TicketMessage from '../../../models/TicketMessage.js';
 import { getIO } from '../../../socket/socket.js';
@@ -13,14 +14,19 @@ import { createNotification } from '../../notification/index.js';
  * - Emits real-time message:new to the ticket room via Socket.IO.
  * - Returns clean serialized message with safe sender details.
  *
- * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @param {string} ticketId - MongoDB ObjectId or ticketNumber of the ticket
  * @param {string} agentId - Authenticated Agent's User ObjectId from JWT
  * @param {string} body - Validated message body text
  * @returns {Promise<Object>} Created message object
  */
 export const sendAgentMessage = async (ticketId, agentId, body) => {
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId) && /^[0-9a-fA-F]{24}$/.test(ticketId);
+  const identifierQuery = isObjectId
+    ? { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] }
+    : { ticketNumber: ticketId };
+
   // 1. Verify ticket exists
-  const ticket = await Ticket.findById(ticketId).lean();
+  const ticket = await Ticket.findOne(identifierQuery).lean();
 
   if (!ticket) {
     const err = new Error('Ticket not found');
@@ -47,9 +53,9 @@ export const sendAgentMessage = async (ticketId, agentId, body) => {
     throw err;
   }
 
-  // 3. Persist new TicketMessage
+  // 3. Persist new TicketMessage using canonical ticket._id
   const message = await TicketMessage.create({
-    ticketId,
+    ticketId: ticket._id,
     senderId: agentId,
     senderRole: 'agent',
     body: body.trim(),
@@ -57,7 +63,7 @@ export const sendAgentMessage = async (ticketId, agentId, body) => {
 
   // Record SLA first response if applicable
   const { recordFirstResponse } = await import('../../sla/sla.service.js');
-  await recordFirstResponse(ticketId, 'agent', agentId);
+  await recordFirstResponse(ticket._id, 'agent', agentId);
 
   // 4. Populate sender safe details
   await message.populate('senderId', 'name email role');

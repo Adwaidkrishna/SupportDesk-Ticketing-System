@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Ticket from '../../../models/Ticket.js';
 import { getIO } from '../../../socket/socket.js';
 import { createNotification } from '../../notification/index.js';
@@ -16,13 +17,18 @@ import { createNotification } from '../../notification/index.js';
  * - Emits real-time ticket:status event to canonical ticket room.
  * - Returns clean serialized ticket object.
  *
- * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @param {string} ticketId - MongoDB ObjectId or ticketNumber of the ticket
  * @param {string} agentId - Authenticated agent's ObjectId from JWT
  * @param {'RESOLVED'|'CLOSED'} status - Desired target status
  * @returns {Promise<Object>} Updated ticket object
  */
 export const updateAgentTicketStatus = async (ticketId, agentId, status) => {
-  const ticket = await Ticket.findById(ticketId);
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId) && /^[0-9a-fA-F]{24}$/.test(ticketId);
+  const identifierQuery = isObjectId
+    ? { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] }
+    : { ticketNumber: ticketId };
+
+  const ticket = await Ticket.findOne(identifierQuery);
 
   if (!ticket) {
     const error = new Error('Ticket not found');
@@ -49,7 +55,7 @@ export const updateAgentTicketStatus = async (ticketId, agentId, status) => {
   ticket.status = status;
   if (status === 'RESOLVED') {
     const { recordResolution } = await import('../../sla/sla.service.js');
-    await recordResolution(ticketId);
+    await recordResolution(ticket._id);
   }
   await ticket.save();
 

@@ -1,14 +1,21 @@
+import mongoose from 'mongoose';
 import Ticket from '../../../models/Ticket.js';
 
 /**
  * Service to retrieve single ticket details for an authorized agent.
  * Populates customer, category, and assignedTo agent without exposing sensitive fields.
+ * Supports ticket lookup by MongoDB ObjectId or ticketNumber.
  *
- * @param {string} ticketId - Ticket MongoDB ObjectId
+ * @param {string} ticketId - Ticket MongoDB ObjectId or ticketNumber
  * @returns {Promise<Object>} Formatted ticket details
  */
 export const getAgentTicketDetails = async (ticketId) => {
-  const ticket = await Ticket.findById(ticketId)
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId) && /^[0-9a-fA-F]{24}$/.test(ticketId);
+  const identifierQuery = isObjectId
+    ? { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] }
+    : { ticketNumber: ticketId };
+
+  const ticket = await Ticket.findOne(identifierQuery)
     .populate('customerId', 'name email')
     .populate('categoryId', 'name description')
     .populate('assignedTo', 'name email')

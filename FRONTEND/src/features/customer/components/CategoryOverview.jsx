@@ -9,19 +9,18 @@ export default function CategoryOverview({ data }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  let accumulatedPercent = 0;
-
-  const segments = categories.map((cat) => {
-    const percent = cat.count / total;
+  const segments = categories.reduce((acc, cat) => {
+    const percent = total > 0 ? cat.count / total : 0;
     const dashArray = `${percent * circumference} ${circumference}`;
-    const dashOffset = -accumulatedPercent * circumference;
-    accumulatedPercent += percent;
-    return {
+    const dashOffset = -acc.accumulated * circumference;
+    acc.accumulated += percent;
+    acc.items.push({
       ...cat,
       dashArray,
       dashOffset,
-    };
-  });
+    });
+    return acc;
+  }, { accumulated: 0, items: [] }).items;
 
   return (
     <div className={styles.panel}>

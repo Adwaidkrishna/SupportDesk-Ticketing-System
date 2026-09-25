@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Ticket from '../../../models/Ticket.js';
 import TicketMessage from '../../../models/TicketMessage.js';
 import { getIO } from '../../../socket/socket.js';
@@ -13,14 +14,19 @@ import { createNotification, notifyRole } from '../../notification/index.js';
  * - Emits real-time message:new to the ticket room via Socket.IO.
  * - Returns clean serialized message with safe sender details.
  *
- * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @param {string} ticketId - MongoDB ObjectId or ticketNumber of the ticket
  * @param {string} customerId - Authenticated Customer's User ObjectId from JWT
  * @param {string} body - Validated message body text
  * @returns {Promise<Object>} Created message object
  */
 export const sendCustomerMessage = async (ticketId, customerId, body) => {
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId) && /^[0-9a-fA-F]{24}$/.test(ticketId);
+  const identifierQuery = isObjectId
+    ? { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] }
+    : { ticketNumber: ticketId };
+
   // 1. Verify ticket exists and belongs to the customer (Customer Isolation)
-  const ticket = await Ticket.findById(ticketId).lean();
+  const ticket = await Ticket.findOne(identifierQuery).lean();
 
   if (!ticket || ticket.customerId.toString() !== customerId.toString()) {
     const err = new Error('Ticket not found');
@@ -40,9 +46,9 @@ export const sendCustomerMessage = async (ticketId, customerId, body) => {
     throw err;
   }
 
-  // 2. Persist new TicketMessage
+  // 2. Persist new TicketMessage using canonical ticket._id
   const message = await TicketMessage.create({
-    ticketId,
+    ticketId: ticket._id,
     senderId: customerId,
     senderRole: 'customer',
     body: body.trim(),

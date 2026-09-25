@@ -1,21 +1,28 @@
+import mongoose from 'mongoose';
 import Ticket from '../../../models/Ticket.js';
 import TicketMessage from '../../../models/TicketMessage.js';
 
 /**
  * Service to retrieve messages for an assigned ticket for the assigned agent.
+ * Supports ticketId as MongoDB ObjectId or ticketNumber.
  *
  * Enforces:
  * - Ticket exists (404 if not).
  * - Authenticated agent is the assigned agent for this ticket (403 if unassigned or assigned to someone else).
  * - Returns chronological messages (oldest to newest) with safe sender fields.
  *
- * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @param {string} ticketId - MongoDB ObjectId or ticketNumber of the ticket
  * @param {string} agentId - Authenticated Agent's User ObjectId from JWT
  * @returns {Promise<Array<Object>>} List of formatted messages
  */
 export const getAgentTicketMessages = async (ticketId, agentId) => {
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId) && /^[0-9a-fA-F]{24}$/.test(ticketId);
+  const identifierQuery = isObjectId
+    ? { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] }
+    : { ticketNumber: ticketId };
+
   // 1. Verify ticket exists
-  const ticket = await Ticket.findById(ticketId).lean();
+  const ticket = await Ticket.findOne(identifierQuery).lean();
 
   if (!ticket) {
     const err = new Error('Ticket not found');
@@ -31,7 +38,7 @@ export const getAgentTicketMessages = async (ticketId, agentId) => {
   }
 
   // 3. Retrieve messages chronologically
-  const rawMessages = await TicketMessage.find({ ticketId })
+  const rawMessages = await TicketMessage.find({ ticketId: ticket._id })
     .populate('senderId', 'name email role')
     .sort({ createdAt: 1 })
     .lean();

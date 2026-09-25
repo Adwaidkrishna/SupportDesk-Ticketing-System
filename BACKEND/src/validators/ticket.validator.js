@@ -158,7 +158,7 @@ export const validateGetMyTicketsInput = (req, res, next) => {
 };
 
 /**
- * Validates path parameter ticketId for GET /api/v1/tickets/:ticketId
+ * Validates path parameter ticketId for ticket routes (supports ObjectId or ticketNumber e.g. TKT-000001)
  */
 export const validateTicketIdParam = (req, res, next) => {
   const { ticketId } = req.params;
@@ -170,15 +170,23 @@ export const validateTicketIdParam = (req, res, next) => {
     });
   }
 
-  const trimmedId = ticketId.trim();
-  if (!mongoose.Types.ObjectId.isValid(trimmedId)) {
+  let trimmedId = ticketId.trim();
+  if (trimmedId.startsWith('#')) {
+    trimmedId = trimmedId.substring(1).trim();
+  }
+
+  const isObjectId = mongoose.Types.ObjectId.isValid(trimmedId) && /^[0-9a-fA-F]{24}$/.test(trimmedId);
+  const isTicketNumber = /^TKT-\d+$/i.test(trimmedId);
+
+  if (!isObjectId && !isTicketNumber) {
     return res.status(400).json({
       success: false,
       message: 'Validation error: Invalid ticket ID format.',
     });
   }
 
-  req.params.ticketId = trimmedId;
+  req.params.ticketId = isTicketNumber ? trimmedId.toUpperCase() : trimmedId;
+  req.sanitizedTicketId = req.params.ticketId;
   next();
 };
 

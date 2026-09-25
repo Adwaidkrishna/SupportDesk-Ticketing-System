@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Ticket from '../../../models/Ticket.js';
 import { getIO } from '../../../socket/socket.js';
 import { createNotification, notifyRole } from '../../notification/index.js';
@@ -18,13 +19,18 @@ import { createNotification, notifyRole } from '../../notification/index.js';
  * - Emits real-time ticket:status event to canonical ticket room.
  * - Returns clean serialized ticket object.
  *
- * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @param {string} ticketId - MongoDB ObjectId or ticketNumber of the ticket
  * @param {string} userId - Authenticated user's ObjectId from JWT
  * @param {string} role - Authenticated user's role ('customer' | 'agent' | 'admin')
  * @returns {Promise<Object>} Updated ticket object
  */
 export const reopenTicket = async (ticketId, userId, role) => {
-  const ticket = await Ticket.findById(ticketId);
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId) && /^[0-9a-fA-F]{24}$/.test(ticketId);
+  const identifierQuery = isObjectId
+    ? { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] }
+    : { ticketNumber: ticketId };
+
+  const ticket = await Ticket.findOne(identifierQuery);
 
   if (!ticket) {
     const error = new Error('Ticket not found');

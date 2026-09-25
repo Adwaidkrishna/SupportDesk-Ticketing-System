@@ -1,12 +1,19 @@
+import mongoose from 'mongoose';
 import Ticket from '../../../models/Ticket.js';
 
 /**
  * Service to retrieve single ticket details strictly owned by the authenticated customer.
+ * Supports lookup by MongoDB ObjectId or ticketNumber.
  */
 export const getTicketByIdForCustomer = async (ticketId, customerId) => {
-  // Scoped query: ticketId AND customerId (Customer Isolation & IDOR Protection)
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId) && /^[0-9a-fA-F]{24}$/.test(ticketId);
+  const identifierQuery = isObjectId
+    ? { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] }
+    : { ticketNumber: ticketId };
+
+  // Scoped query: identifier AND customerId (Customer Isolation & IDOR Protection)
   const ticket = await Ticket.findOne({
-    _id: ticketId,
+    ...identifierQuery,
     customerId,
   })
     .populate('categoryId', 'name description')

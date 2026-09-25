@@ -1,14 +1,21 @@
+import mongoose from 'mongoose';
 import Ticket from '../../../models/Ticket.js';
 import TicketMessage from '../../../models/TicketMessage.js';
 
 /**
  * Service to retrieve messages for a specific ticket owned by the authenticated customer.
+ * Supports ticketId as MongoDB ObjectId or ticketNumber.
  * Enforces customer isolation / IDOR protection.
  */
 export const getTicketMessages = async (userId, ticketId) => {
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId) && /^[0-9a-fA-F]{24}$/.test(ticketId);
+  const identifierQuery = isObjectId
+    ? { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] }
+    : { ticketNumber: ticketId };
+
   // 1. Verify Ticket exists and belongs to the authenticated customer
   const ticket = await Ticket.findOne({
-    _id: ticketId,
+    ...identifierQuery,
     customerId: userId,
   }).lean();
 
@@ -19,7 +26,7 @@ export const getTicketMessages = async (userId, ticketId) => {
   }
 
   // 2. Retrieve messages sorted chronologically (oldest first)
-  const rawMessages = await TicketMessage.find({ ticketId })
+  const rawMessages = await TicketMessage.find({ ticketId: ticket._id })
     .populate('senderId', 'name email role')
     .sort({ createdAt: 1 })
     .lean();

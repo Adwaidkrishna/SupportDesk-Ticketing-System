@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { allAgentTicketsList } from '../agentMockData';
 import Select from '../../../components/common/Select';

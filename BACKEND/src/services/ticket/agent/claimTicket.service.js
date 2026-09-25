@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Ticket from '../../../models/Ticket.js';
 import { createNotification } from '../../notification/index.js';
 
@@ -8,18 +9,29 @@ import { createNotification } from '../../notification/index.js';
  * - Only tickets where status is OPEN and assignedTo is null (or unset) can be claimed.
  * - Atomically sets assignedTo to current agent and status to IN_PROGRESS.
  * - Prevents race conditions where two agents attempt to claim concurrently.
+ * - Supports ticketId as MongoDB ObjectId or ticketNumber.
  *
- * @param {string} ticketId - MongoDB ObjectId of the ticket
+ * @param {string} ticketId - MongoDB ObjectId or ticketNumber of the ticket
  * @param {string} agentId - Authenticated Agent's User ObjectId from JWT
  * @returns {Promise<Object>} Updated ticket data
  */
 export const claimTicket = async (ticketId, agentId) => {
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId) && /^[0-9a-fA-F]{24}$/.test(ticketId);
+
   // Atomic query matching claim criteria
-  const query = {
-    _id: ticketId,
-    status: 'OPEN',
-    $or: [{ assignedTo: null }, { assignedTo: { $exists: false } }],
-  };
+  const query = isObjectId
+    ? {
+        status: 'OPEN',
+        $and: [
+          { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] },
+          { $or: [{ assignedTo: null }, { assignedTo: { $exists: false } }] },
+        ],
+      }
+    : {
+        ticketNumber: ticketId,
+        status: 'OPEN',
+        $or: [{ assignedTo: null }, { assignedTo: { $exists: false } }],
+      };
 
   const update = {
     $set: {
@@ -40,7 +52,11 @@ export const claimTicket = async (ticketId, agentId) => {
 
   if (!updatedTicket) {
     // Determine precise failure reason
-    const existingTicket = await Ticket.findById(ticketId).lean();
+    const existingTicket = await Ticket.findOne(
+      isObjectId
+        ? { $or: [{ _id: ticketId }, { ticketNumber: ticketId }] }
+        : { ticketNumber: ticketId }
+    ).lean();
 
     if (!existingTicket) {
       const err = new Error('Ticket not found');

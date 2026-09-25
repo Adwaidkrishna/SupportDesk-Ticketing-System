@@ -67,7 +67,7 @@ app.use('/api/v1/admin', adminRoutes);
 
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
-app.use((req, res, next) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: `Cannot ${req.method} ${req.originalUrl} — Route not found.`,
@@ -75,7 +75,7 @@ app.use((req, res, next) => {
 });
 
 // ─── Global Error Handler ─────────────────────────────────────────────────────
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   const statusCode = err.statusCode || 500;
 
   // M-03 FIX: Stack traces ONLY in development mode
