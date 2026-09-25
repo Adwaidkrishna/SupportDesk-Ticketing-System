@@ -6,12 +6,16 @@ import initializeSocket from './socket/socket.js';
 
 import { seedDefaultPolicies } from './services/sla/sla.service.js';
 import { startSlaMonitor } from './jobs/slaMonitor.job.js';
+import { registerShutdownHandlers } from './utils/gracefulShutdown.js';
 
 const PORT = process.env.PORT || 5000;
 
 const httpServer = createServer(app);
 
-initializeSocket(httpServer);
+const io = initializeSocket(httpServer);
+
+// Register graceful shutdown handlers for SIGTERM and SIGINT
+registerShutdownHandlers({ httpServer, io });
 
 connectDB().then(() => {
   //sla need to run continuesly

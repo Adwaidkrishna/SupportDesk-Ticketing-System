@@ -167,4 +167,21 @@ export const getIO = () => {
   return io;
 };
 
+/**
+ * Close Socket.IO server cleanly
+ * @returns {Promise<void>}
+ */
+export const closeSocket = () => {
+  return new Promise((resolve) => {
+    if (io) {
+      io.close(() => {
+        io = null;
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
+};
+
 export default initializeSocket;
