@@ -6,50 +6,35 @@ import useAuthForm from '../hooks/useAuthForm';
 import { validateLoginForm } from '../auth.validation';
 import { login as loginService } from '../services/auth.service';
 import { useAuth } from '../context/AuthContext';
-import devTestUsers from '../../../config/devTestUsers';
+import { getDevTestUser } from '../../../config/devTestUsers';
 import styles from './Login.module.css';
 
 /**
  * Login page.
  * Authenticates user, updates auth context, and routes to role-specific dashboard.
- * Includes a development-only Quick Login dropdown for test convenience.
+ * Supports standard form login and development-only Quick Developer Login.
  */
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login: setAuthSession } = useAuth();
 
-  const [selectedAccount, setSelectedAccount] = useState('');
+  const [quickLoading, setQuickLoading] = useState(false);
 
   const formState = useAuthForm(
     { email: '', password: '', rememberMe: false },
     validateLoginForm,
   );
 
-  const isDev = Boolean(import.meta.env.DEV);
-
-  const handleQuickLoginChange = (e) => {
-    const selectedEmail = e.target.value;
-    setSelectedAccount(selectedEmail);
-
-    if (!selectedEmail) {
-      formState.setValue('email', '');
-      formState.setValue('password', '');
-      return;
-    }
-
-    const found = devTestUsers.find((u) => u.email === selectedEmail);
-    if (found) {
-      formState.setValue('email', found.email);
-      formState.setValue('password', found.password);
-    }
-  };
-
-  const onSubmit = formState.handleSubmit(async (values) => {
+  /**
+   * Unified authentication execution routine.
+   * Shared by both normal form submission and Quick Developer Login.
+   */
+  const executeAuthentication = async ({ email, password }) => {
     try {
       const result = await loginService({
-        email: values.email,
-        password: values.password,
+        email,
+        password,
       });
 
       if (result.success && result.token && result.user) {
@@ -75,7 +60,7 @@ export default function Login() {
         // Unverified account: redirect to OTP verification with the email
         navigate('/verify-otp', {
           state: {
-            email: values.email,
+            email,
             message: 'Please verify your OTP to activate your account.',
           },
         });
@@ -83,7 +68,46 @@ export default function Login() {
       }
       throw err;
     }
+  };
+
+  /**
+   * Normal login form submit handler.
+   */
+  const onSubmit = formState.handleSubmit(async (values) => {
+    return executeAuthentication({
+      email: values.email,
+      password: values.password,
+    });
   });
+
+  /**
+   * Quick Developer Login handler for dev/testing only.
+   * Reads credentials from VITE_DEV_* environment variables and runs through legitimate login.
+   */
+  const handleQuickLogin = async (role) => {
+    const devUser = getDevTestUser(role);
+
+    if (!devUser?.email || !devUser?.password) {
+      formState.setServerError(
+        `Development credentials for "${role}" are not configured in FRONTEND/.env (VITE_DEV_${role.toUpperCase()}_EMAIL / PASSWORD)`
+      );
+      return;
+    }
+
+    try {
+      setQuickLoading(true);
+      formState.setServerError('');
+      await executeAuthentication({
+        email: devUser.email,
+        password: devUser.password,
+      });
+    } catch (err) {
+      const msg = err?.message || `Failed to log in as ${role}`;
+      formState.setServerError(msg);
+    } finally {
+      setQuickLoading(false);
+    }
+  };
 
   return (
     <div className={styles.page}>
@@ -92,34 +116,12 @@ export default function Login() {
         subtitle="Sign in to your SupportDesk account"
       />
 
-      {/* Quick Login (Development Testing Only) */}
-      {isDev && (
-        <div className={styles.quickLoginBox}>
-          <div className={styles.quickLoginHeader}>
-            <span className={styles.quickLoginLabel}>⚡ Quick Login (Development)</span>
-            <span className={styles.quickLoginBadge}>DEV ONLY</span>
-          </div>
-          <p className={styles.quickLoginHelper}>
-            Testing convenience — development only
-          </p>
-          <select
-            id="quick-login-select"
-            className={styles.quickLoginSelect}
-            value={selectedAccount}
-            onChange={handleQuickLoginChange}
-            aria-label="Quick Login test account selector"
-          >
-            <option value="">Select test account</option>
-            {devTestUsers.map((user) => (
-              <option key={user.email} value={user.email}>
-                {user.label} ({user.role})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <LoginForm formState={formState} onSubmit={onSubmit} />
+      <LoginForm
+        formState={formState}
+        onSubmit={onSubmit}
+        onQuickLogin={handleQuickLogin}
+        quickLoading={quickLoading}
+      />
     </div>
   );
 }

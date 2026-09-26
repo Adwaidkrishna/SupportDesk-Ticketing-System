@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Input from '../../../components/common/Input';
 import Button from '../../../components/common/Button';
@@ -7,11 +8,22 @@ import styles from './LoginForm.module.css';
 /**
  * Login form component.
  * Renders email, password (with toggle), remember me, submit, and social auth.
+ * Includes a development-only Quick Developer Login section below Remember Me.
  *
  * @param {Object} formState - From useAuthForm
  * @param {Function} onSubmit - Form submit handler
+ * @param {Function} [onQuickLogin] - Development quick login handler
+ * @param {boolean} [quickLoading] - Development quick login loading state
  */
-export default function LoginForm({ formState, onSubmit }) {
+export default function LoginForm({
+  formState,
+  onSubmit,
+  onQuickLogin,
+  quickLoading = false,
+}) {
+  const [selectedRole, setSelectedRole] = useState('');
+  const isDev = Boolean(import.meta.env.DEV);
+
   const {
     values,
     errors,
@@ -82,6 +94,44 @@ export default function LoginForm({ formState, onSubmit }) {
           Forgot password?
         </Link>
       </div>
+
+      {/* Quick Developer Login (Development Testing Only) */}
+      {isDev && (
+        <div className={styles.quickDevSection}>
+          <div className={styles.quickDevHeader}>
+            <span className={styles.quickDevLabel}>⚡ Quick Developer Login</span>
+            <span className={styles.quickDevBadge}>DEV ONLY</span>
+          </div>
+
+          <div className={styles.quickDevControls}>
+            <select
+              id="quick-dev-role-select"
+              className={styles.quickDevSelect}
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              disabled={isSubmitting || quickLoading}
+              aria-label="Select development role"
+            >
+              <option value="">Select a role</option>
+              <option value="Agent">Agent</option>
+              <option value="Admin">Admin</option>
+              <option value="Customer">Customer</option>
+            </select>
+
+            {selectedRole && (
+              <button
+                type="button"
+                id="quick-dev-login-btn"
+                className={styles.quickDevButton}
+                onClick={() => onQuickLogin?.(selectedRole)}
+                disabled={isSubmitting || quickLoading || !selectedRole}
+              >
+                {quickLoading ? 'Logging in...' : `Login as ${selectedRole}`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Submit */}
       <Button

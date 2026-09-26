@@ -1,26 +1,33 @@
 /**
- * Development test accounts for quick login convenience during local testing.
- * Only utilized when import.meta.env.DEV is true.
+ * Development test accounts loaded strictly from environment variables.
+ * No hardcoded credentials or fallback passwords exist in source code.
+ * Only accessible during development (import.meta.env.DEV).
  */
-const devTestUsers = [
-  {
-    label: 'Customer',
-    role: 'customer',
-    email: 'supportdesk.customer@test.local',
-    password: 'TestCustomer@12345',
-  },
-  {
-    label: 'Agent',
-    role: 'agent',
-    email: 'supportdesk.agent@test.local',
-    password: 'TestAgent@12345',
-  },
-  {
-    label: 'Admin',
-    role: 'admin',
-    email: 'supportdesk.admin@test.local',
-    password: 'TestAdmin@12345',
-  },
-];
 
-export default devTestUsers;
+export const getDevTestUser = (role) => {
+  const normalized = role?.toLowerCase();
+  if (normalized === 'agent') {
+    return {
+      role: 'agent',
+      email: import.meta.env.VITE_DEV_AGENT_EMAIL || '',
+      password: import.meta.env.VITE_DEV_AGENT_PASSWORD || '',
+    };
+  }
+  if (normalized === 'admin') {
+    return {
+      role: 'admin',
+      email: import.meta.env.VITE_DEV_ADMIN_EMAIL || '',
+      password: import.meta.env.VITE_DEV_ADMIN_PASSWORD || '',
+    };
+  }
+  if (normalized === 'customer') {
+    return {
+      role: 'customer',
+      email: import.meta.env.VITE_DEV_CUSTOMER_EMAIL || '',
+      password: import.meta.env.VITE_DEV_CUSTOMER_PASSWORD || '',
+    };
+  }
+  return null;
+};
+
+export const DEV_ROLES = ['Agent', 'Admin', 'Customer'];
