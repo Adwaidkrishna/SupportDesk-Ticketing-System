@@ -22,7 +22,9 @@ export default function LoginForm({
   quickLoading = false,
 }) {
   const [selectedRole, setSelectedRole] = useState('');
-  const isDev = Boolean(import.meta.env.DEV);
+  const showQuickDeveloperLogin =
+    import.meta.env.DEV ||
+    import.meta.env.VITE_ENABLE_DEV_LOGIN === 'true';
 
   const {
     values,
@@ -96,7 +98,7 @@ export default function LoginForm({
       </div>
 
       {/* Quick Developer Login (Development Testing Only - Appears when Remember Me is checked) */}
-      {isDev && values.rememberMe && (
+      {showQuickDeveloperLogin && values.rememberMe && (
         <div className={styles.quickDevSection}>
           <div className={styles.quickDevHeader}>
             <span className={styles.quickDevLabel}>⚡ Quick Developer Login</span>
