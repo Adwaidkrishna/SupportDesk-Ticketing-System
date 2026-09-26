@@ -95,8 +95,8 @@ export default function LoginForm({
         </Link>
       </div>
 
-      {/* Quick Developer Login (Development Testing Only) */}
-      {isDev && (
+      {/* Quick Developer Login (Development Testing Only - Appears when Remember Me is checked) */}
+      {isDev && values.rememberMe && (
         <div className={styles.quickDevSection}>
           <div className={styles.quickDevHeader}>
             <span className={styles.quickDevLabel}>⚡ Quick Developer Login</span>
