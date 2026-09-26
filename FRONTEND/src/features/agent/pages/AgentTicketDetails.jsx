@@ -29,6 +29,7 @@ export default function AgentTicketDetails() {
   // Ticket Details state
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
   const [isCalling, setIsCalling] = useState(false);
 
