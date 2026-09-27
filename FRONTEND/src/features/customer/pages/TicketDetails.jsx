@@ -55,6 +55,7 @@ export default function TicketDetails() {
     if (!ticketId) return;
 
     const joinRoom = () => {
+      console.log('[VIDEO DEBUG] Customer joining ticket room', ticketId);
       socket.emit('join-ticket', { ticketId }, (response) => {
         if (!response?.success) {
           console.error('❌ Failed to join ticket room:', response?.message);
@@ -65,12 +66,14 @@ export default function TicketDetails() {
     };
 
     const handleConnect = () => {
+      console.log('[VIDEO DEBUG] Customer socket connected', socket.id);
       joinRoom();
     };
 
     socket.on('connect', handleConnect);
 
     if (socket.connected) {
+      console.log('[VIDEO DEBUG] Customer socket connected', socket.id);
       joinRoom();
     }
 
@@ -137,7 +140,17 @@ export default function TicketDetails() {
     };
 
     const handleIncomingCall = (callData) => {
-      if (isTicketMatch(callData)) {
+      console.log('[VIDEO DEBUG] CUSTOMER RECEIVED CALL EVENT', callData);
+      console.log('[VIDEO DEBUG] Checking call ticket match', callData, {
+        ticketNumber: ticket?.ticketNumber,
+        ticketId: ticket?._id || ticket?.id,
+        paramTicketId: ticketId,
+      });
+      const match = isTicketMatch(callData);
+      console.log('[VIDEO DEBUG] Ticket match result', match);
+
+      if (match) {
+        console.log('[VIDEO DEBUG] SETTING INCOMING CALL');
         setIncomingCall({
           ticketNumber: callData.ticketNumber,
           ticketId: callData.ticketId,
@@ -157,6 +170,7 @@ export default function TicketDetails() {
     socket.on(SIGNALING_EVENTS.CALL_INCOMING, handleIncomingCall);
     socket.on(SIGNALING_EVENTS.CALL_INITIATE, handleIncomingCall);
     socket.on(SIGNALING_EVENTS.CALL_ENDED, handleCallEnded);
+    console.log('[VIDEO DEBUG] Customer video listeners registered');
 
     return () => {
       socket.off(SIGNALING_EVENTS.CALL_INCOMING, handleIncomingCall);
@@ -489,13 +503,18 @@ export default function TicketDetails() {
   return (
     <div className={styles.page}>
       {incomingCall && (
-        <IncomingCallBanner
-          agentName={incomingCall.agentName}
-          ticketId={incomingCall.ticketNumber || incomingCall.ticketId}
-          ticketSubject={incomingCall.ticketSubject}
-          onDecline={handleDeclineCall}
-          onJoin={handleAcceptCall}
-        />
+        (() => {
+          console.log('[VIDEO DEBUG] RENDERING INCOMING CALL BANNER', incomingCall);
+          return (
+            <IncomingCallBanner
+              agentName={incomingCall.agentName}
+              ticketId={incomingCall.ticketNumber || incomingCall.ticketId}
+              ticketSubject={incomingCall.ticketSubject}
+              onDecline={handleDeclineCall}
+              onJoin={handleAcceptCall}
+            />
+          );
+        })()
       )}
 
       <div className={styles.topSection}>

@@ -548,6 +548,7 @@ export default function AgentTicketDetails() {
       callerName: user?.name || 'Support Agent',
     };
 
+    console.log('[VIDEO DEBUG] AGENT EMITTING CALL_INITIATE', payload);
     socket.emit(SIGNALING_EVENTS.CALL_INITIATE, payload, (response) => {
       if (response && response.success === false) {
         setIsCalling(false);

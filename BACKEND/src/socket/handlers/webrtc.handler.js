@@ -86,12 +86,16 @@ export const registerWebRtcHandlers = (io, socket) => {
    */
   socket.on(SIGNALING_EVENTS.CALL_INITIATE, async (data, callback) => {
     try {
+      console.log('[VIDEO DEBUG] BACKEND RECEIVED CALL_INITIATE', { data, caller: socket.user });
       const target = data?.ticketNumber || data?.ticketId || (typeof data === 'string' ? data : null);
       const auth = await authorizeCallParticipant(target, socket.user);
 
       if (!auth.authorized) {
+        console.warn('[VIDEO DEBUG] CALL AUTHORIZATION FAILED', auth.error);
         return reportError(callback, auth.error, 'UNAUTHORIZED');
       }
+
+      console.log(`[VIDEO DEBUG] CALL AUTHORIZED ${auth.ticket.ticketNumber} ${auth.ticket.customerId}`);
 
       const room = `ticket:${auth.ticket.ticketNumber}`;
 
@@ -109,6 +113,8 @@ export const registerWebRtcHandlers = (io, socket) => {
         },
       };
 
+      const ticketRoomSockets = Array.from(io?.sockets?.adapter?.rooms?.get(room) || []);
+      console.log('[VIDEO DEBUG] EMIT CALL TO TICKET ROOM', room, 'Socket count:', ticketRoomSockets.length, 'Socket IDs:', ticketRoomSockets);
       socket.to(room).emit(SIGNALING_EVENTS.CALL_INCOMING, callData);
       socket.to(room).emit(SIGNALING_EVENTS.CALL_INITIATE, callData);
 
@@ -119,6 +125,8 @@ export const registerWebRtcHandlers = (io, socket) => {
 
       if (customerId) {
         const customerRoom = `user:${customerId}`;
+        const customerRoomSockets = Array.from(io?.sockets?.adapter?.rooms?.get(customerRoom) || []);
+        console.log('[VIDEO DEBUG] EMIT CALL TO CUSTOMER ROOM', customerRoom, 'Socket count:', customerRoomSockets.length, 'Socket IDs:', customerRoomSockets);
         io.to(customerRoom).emit(SIGNALING_EVENTS.CALL_INCOMING, callData);
         io.to(customerRoom).emit(SIGNALING_EVENTS.CALL_INITIATE, callData);
       }
