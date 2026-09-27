@@ -112,6 +112,17 @@ export const registerWebRtcHandlers = (io, socket) => {
       socket.to(room).emit(SIGNALING_EVENTS.CALL_INCOMING, callData);
       socket.to(room).emit(SIGNALING_EVENTS.CALL_INITIATE, callData);
 
+      // Also deliver incoming call payload to the customer's personal room
+      const customerId = auth.ticket.customerId?._id
+        ? auth.ticket.customerId._id.toString()
+        : auth.ticket.customerId?.toString();
+
+      if (customerId) {
+        const customerRoom = `user:${customerId}`;
+        io.to(customerRoom).emit(SIGNALING_EVENTS.CALL_INCOMING, callData);
+        io.to(customerRoom).emit(SIGNALING_EVENTS.CALL_INITIATE, callData);
+      }
+
       if (typeof callback === 'function') {
         callback({
           success: true,
