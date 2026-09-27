@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { useAuth } from '../../auth/context/AuthContext';
 import socket from '../../../socket/socket.js';
 import * as notifService from '../../../services/notification.service.js';
+import { SIGNALING_EVENTS } from '../../video-call/constants/signalingEvents.js';
 
 export const NotificationContext = createContext(null);
 
@@ -11,6 +12,7 @@ export function NotificationProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [toastNotification, setToastNotification] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
   const toastTimeoutRef = useRef(null);
 
   // Play synthesized web audio chime on new notification
@@ -67,10 +69,11 @@ export function NotificationProvider({ children }) {
       setNotifications([]);
       setUnreadCount(0);
       setToastNotification(null);
+      setIncomingCall(null);
     }
   }, [isAuthenticated, refreshNotifications]);
 
-  // Socket.IO event listeners for real-time notifications
+  // Socket.IO event listeners for real-time notifications and video calls
   useEffect(() => {
     if (!isAuthenticated || !user) return;
 
@@ -102,17 +105,97 @@ export function NotificationProvider({ children }) {
       }
     };
 
+    // Global incoming video call handler for customers
+    const handleIncomingCall = (callData) => {
+      if (user?.role !== 'customer') return;
+
+      console.log('[VIDEO DEBUG] Global NotificationContext received incoming call:', callData);
+      setIncomingCall({
+        ticketNumber: callData.ticketNumber,
+        ticketId: callData.ticketId,
+        ticketSubject: callData.ticketSubject,
+        agentName: callData.callerName || 'Support Agent',
+        callerId: callData.callerId,
+      });
+
+      playChime();
+    };
+
+    const handleCallEnded = (data) => {
+      console.log('[VIDEO DEBUG] Global NotificationContext received call ended:', data);
+      setIncomingCall((prev) => {
+        if (!prev) return null;
+        if (!data?.ticketNumber || data?.ticketNumber === prev.ticketNumber) {
+          return null;
+        }
+        return prev;
+      });
+    };
+
     socket.on('notification:new', handleNewNotification);
     socket.on('notification:count', handleCountUpdate);
+    socket.on(SIGNALING_EVENTS.CALL_INCOMING, handleIncomingCall);
+    socket.on(SIGNALING_EVENTS.CALL_INITIATE, handleIncomingCall);
+    socket.on(SIGNALING_EVENTS.CALL_ENDED, handleCallEnded);
 
     return () => {
       socket.off('notification:new', handleNewNotification);
       socket.off('notification:count', handleCountUpdate);
+      socket.off(SIGNALING_EVENTS.CALL_INCOMING, handleIncomingCall);
+      socket.off(SIGNALING_EVENTS.CALL_INITIATE, handleIncomingCall);
+      socket.off(SIGNALING_EVENTS.CALL_ENDED, handleCallEnded);
       if (toastTimeoutRef.current) {
         clearTimeout(toastTimeoutRef.current);
       }
     };
   }, [isAuthenticated, user, playChime]);
+
+  const acceptCall = useCallback(() => {
+    if (!incomingCall) return null;
+
+    const targetTicket = incomingCall.ticketNumber || incomingCall.ticketId;
+    const targetId = incomingCall.ticketId || incomingCall.ticketNumber;
+
+    socket.emit(
+      SIGNALING_EVENTS.CALL_ACCEPTED,
+      {
+        ticketNumber: targetTicket,
+        ticketId: targetId,
+      },
+      (res) => {
+        if (res && res.success === false) {
+          console.error('Call acceptance signaling failed:', res.error);
+        }
+      }
+    );
+
+    const callTarget = incomingCall;
+    setIncomingCall(null);
+    return String(callTarget.ticketNumber || callTarget.ticketId).replace('#', '');
+  }, [incomingCall]);
+
+  const declineCall = useCallback(() => {
+    if (!incomingCall) return;
+
+    const targetTicket = incomingCall.ticketNumber || incomingCall.ticketId;
+    const targetId = incomingCall.ticketId || incomingCall.ticketNumber;
+
+    socket.emit(
+      SIGNALING_EVENTS.CALL_DECLINED,
+      {
+        ticketNumber: targetTicket,
+        ticketId: targetId,
+        reason: 'Customer declined call invitation',
+      },
+      (res) => {
+        if (res && res.success === false) {
+          console.error('Call decline signaling failed:', res.error);
+        }
+      }
+    );
+
+    setIncomingCall(null);
+  }, [incomingCall]);
 
   const markAsRead = useCallback(async (id) => {
     try {
@@ -163,6 +246,9 @@ export function NotificationProvider({ children }) {
     unreadCount,
     isLoading,
     toastNotification,
+    incomingCall,
+    acceptCall,
+    declineCall,
     markAsRead,
     markAllAsRead,
     deleteNotification,

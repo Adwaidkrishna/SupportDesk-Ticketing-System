@@ -3,6 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/context/AuthContext';
 import { useNotifications } from '../features/notifications/context/NotificationContext';
 import NotificationDropdown from '../features/notifications/components/NotificationDropdown';
+import IncomingCallBanner from '../features/video-call/components/IncomingCallBanner';
 import { currentUser } from '../features/customer/customerMockData';
 import styles from './CustomerLayout.module.css';
 
@@ -15,11 +16,18 @@ export default function CustomerLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, incomingCall, acceptCall, declineCall } = useNotifications();
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
 
   const activePath = location.pathname;
+
+  const handleJoinCall = () => {
+    const cleanId = acceptCall();
+    if (cleanId) {
+      navigate(`/ticket/${cleanId}/call`);
+    }
+  };
 
   const handleLogout = () => {
     setMoreDrawerOpen(false);
@@ -328,6 +336,15 @@ export default function CustomerLayout() {
 
         {/* Page Content */}
         <main className={styles.content}>
+          {incomingCall && (
+            <IncomingCallBanner
+              agentName={incomingCall.agentName}
+              ticketId={incomingCall.ticketNumber || incomingCall.ticketId}
+              ticketSubject={incomingCall.ticketSubject}
+              onDecline={declineCall}
+              onJoin={handleJoinCall}
+            />
+          )}
           <Outlet />
         </main>
       </div>
