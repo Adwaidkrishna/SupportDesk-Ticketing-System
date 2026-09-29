@@ -42,6 +42,14 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
   const cleanTicketId = (ticketId || '').replace('#', '');
   const isOfferer = (user?.role || '').toLowerCase() !== 'customer'; // Agent / Admin is offerer
 
+  const localStreamRef = useRef(localStream);
+  const peerReadyRef = useRef(false);
+
+  // Synchronize localStreamRef with latest localStream prop
+  useEffect(() => {
+    localStreamRef.current = localStream;
+  }, [localStream]);
+
   /**
    * Closes and cleanly destroys the active RTCPeerConnection and resets state.
    */
@@ -81,6 +89,7 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
     candidateQueueRef.current = [];
     isNegotiatingRef.current = false;
     hasOfferedRef.current = false;
+    peerReadyRef.current = false;
     setRemoteStream(null);
     setConnectionState('closed');
   }, []);
@@ -223,9 +232,19 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
   const initiateOffer = useCallback(async (isRestart = false) => {
     if (isEnded || !cleanTicketId) return;
 
+    const stream = localStreamRef.current || localStream;
+    // With bundlePolicy: 'max-bundle', an SDP offer generated without media tracks
+    // has no BUNDLE group, which causes setLocalDescription to reject with OperationError.
+    // Defer offer creation until local tracks are acquired and ready.
+    if (!stream || stream.getTracks().length === 0) {
+      return;
+    }
+
     const pc = createPeerConnection();
-    if (localStream) {
-      syncLocalTracks(pc, localStream);
+    syncLocalTracks(pc, stream);
+
+    if (pc.getSenders().length === 0) {
+      return;
     }
 
     if (isNegotiatingRef.current && !isRestart) return;
@@ -274,8 +293,9 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
 
       try {
         const pc = createPeerConnection();
-        if (localStream) {
-          syncLocalTracks(pc, localStream);
+        const stream = localStreamRef.current || localStream;
+        if (stream) {
+          syncLocalTracks(pc, stream);
         }
 
         setConnectionState('connecting');
@@ -345,7 +365,13 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
     const handleCallAccepted = () => {
       // If we are the offerer (Agent) and haven't connected yet, trigger offer
       if (isOfferer && (!hasOfferedRef.current || connectionState !== 'connected')) {
-        initiateOffer(true);
+        const stream = localStreamRef.current || localStream;
+        if (stream && stream.getTracks().length > 0) {
+          initiateOffer(true);
+        } else {
+          // Defer offer until local tracks finish acquiring in useLocalMedia
+          peerReadyRef.current = true;
+        }
       }
     };
 
@@ -372,10 +398,19 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
     connectionState,
   ]);
 
-  // Trigger initial offer if Agent and localStream is available
+  // Trigger initial offer if Agent and localStream is available with active tracks
   useEffect(() => {
-    if (isOfferer && localStream && !isEnded && cleanTicketId && !hasOfferedRef.current) {
-      initiateOffer(false);
+    if (
+      isOfferer &&
+      localStream &&
+      localStream.getTracks().length > 0 &&
+      !isEnded &&
+      cleanTicketId &&
+      (!hasOfferedRef.current || peerReadyRef.current)
+    ) {
+      const isRestart = peerReadyRef.current;
+      peerReadyRef.current = false;
+      initiateOffer(isRestart);
     }
   }, [isOfferer, localStream, isEnded, cleanTicketId, initiateOffer]);
 
@@ -558,8 +593,9 @@ export function useWebRTC({ ticketId, user, localStream, isEnded }) {
       // If closed, recreate cleanly
       try {
         const newPc = createPeerConnection();
-        if (localStream) {
-          syncLocalTracks(newPc, localStream);
+        const stream = localStreamRef.current || localStream;
+        if (stream) {
+          syncLocalTracks(newPc, stream);
         }
         if (isOfferer) {
           await initiateOffer(false);
